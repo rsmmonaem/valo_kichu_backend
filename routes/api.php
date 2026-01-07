@@ -11,6 +11,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\SettingController;
+use Illuminate\Support\Facades\Artisan;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,6 +23,20 @@ use App\Http\Controllers\SettingController;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+
+Route::get('/nai/kono/migrations', function(){
+
+    return "Successfully done migraiton";
+});
+
+Route::get('/storage-link', function () {
+    Artisan::call('storage:link');
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Successfully done storage link'
+    ]);
+});
 
 // Public Routes
 Route::post('/register', [AuthController::class, 'register']);
