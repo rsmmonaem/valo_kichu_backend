@@ -9,66 +9,63 @@ class ProductResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $langCode = $request->header('X-Language') ?? $request->header('Accept-Language');
-        
+        // Load images if not already loaded
+        if (!$this->relationLoaded('images')) {
+            $this->load('images');
+        }
+
         // Get first image for thumbnail
-        $firstImage = $this->whenLoaded('images', function() {
-            return $this->images->first();
-        }, null);
-        
+        $images = $this->images instanceof \Illuminate\Support\Collection ? $this->images : collect();
+        $firstImage = $images->where('is_primary', true)->first() ?? $images->first();
+        $thumbnailUrl = $firstImage ? (str_starts_with($firstImage->path, 'http') ? $firstImage->path : asset('storage/' . $firstImage->path)) : null;
+
         return [
-            'vendor' => $this->whenLoaded('vendor', $this->vendor),
             'id' => $this->id,
-            'name' => $this->getName($langCode),
-            'description' => $this->getDescription($langCode),
-            'price' => (float) $this->price,
-            'discount_type' => $this->discount_type,
-            'discount' => (float) $this->discount,
-            'stock' => (int) $this->stock,
-            'code' => $this->product_code,
-            'minimum_order_qty' => (int) $this->minimum_order_qty,
+            'name' => $this->name,
+            'description' => $this->description,
+            'price' => (float) ($this->sale_price ?? $this->base_price),
+            'base_price' => (float) $this->base_price,
+            'sale_price' => (float) $this->sale_price,
+            'discount_type' => $this->discount_type ?? 'flat',
+            'discount' => (float) ($this->discount ?? 0),
+            'stock' => (int) $this->stock_quantity,
+            'code' => $this->slug,
+            'minimum_order_qty' => (int) ($this->minimum_order_qty ?? 1),
             'brand' => $this->brand_id ? (int) $this->brand_id : null,
-            'thumbnail' => $firstImage ? $firstImage->image_url : null, // Use accessor for full URL
-            'images' => $this->getProductImages(),
+            'thumbnail' => $thumbnailUrl,
+            'images' => $this->images->map(function($image) {
+                return [
+                    'id' => $image->id,
+                    'image' => str_starts_with($image->path, 'http') ? $image->path : asset('storage/' . $image->path),
+                    'is_primary' => (bool) $image->is_primary,
+                ];
+            })->toArray(),
             'variants' => $this->getVariants(),
             'reviews' => $this->getReviewsSummary(),
         ];
     }
 
-    private function getProductImages(): array
-    {
-        if (!$this->relationLoaded('images')) {
-            $this->load('images');
-        }
-        
-        return $this->images->map(function($image) {
-            return [
-                'id' => $image->id,
-                'image' => $image->image_url, // Use accessor for full URL
-            ];
-        })->toArray();
-    }
-
     private function getVariants(): array
     {
-        if (!$this->relationLoaded('variants')) {
-            $this->load(['variants.images', 'variants.attributes']);
+        if (!$this->relationLoaded('variations')) {
+            $this->load(['variations.images']);
         }
         
-        return $this->variants->map(function($variant) {
+        return $this->variations->map(function($variant) {
             return [
                 'id' => $variant->id,
-                'variant_name' => $variant->variant_name,
-                'attributes' => $variant->attributes->pluck('attribute_type')->toArray(),
-                'price' => (float) $variant->price,
-                'discount_type' => $variant->discount_type,
-                'discount' => (float) $variant->discount,
-                'stock' => (int) $variant->stock,
-                'is_available' => (bool) $variant->is_available,
-                'images' => $variant->images->map(function($image) {
+                'size' => $variant->size,
+                'color' => $variant->color,
+                'price' => (float) (($this->sale_price ?? $this->base_price) + $variant->price_modifier),
+                'price_modifier' => (float) $variant->price_modifier,
+                'stock' => (int) $variant->stock_quantity,
+                'sku' => $variant->sku,
+                'is_available' => (int) $variant->stock_quantity > 0,
+                'images' => ($variant->images instanceof \Illuminate\Support\Collection ? $variant->images : collect())->map(function($image) {
                     return [
                         'id' => $image->id,
-                        'image' => $image->image_url, // Use accessor for full URL
+                        'image' => str_starts_with($image->path, 'http') ? $image->path : asset('storage/' . $image->path),
+                        'is_primary' => (bool) $image->is_primary,
                     ];
                 })->toArray(),
             ];

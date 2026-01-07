@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'optional.auth' => \App\Http\Middleware\OptionalAuth::class,
+            'parse.multipart.put' => \App\Http\Middleware\ParseMultipartPut::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

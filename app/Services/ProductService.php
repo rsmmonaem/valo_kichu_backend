@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Repositories\ProductRepository;
 use App\Models\ProductImage;
-use App\Models\Variant;
+use App\Models\ProductVariation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -178,7 +178,7 @@ class ProductService
         // Handle variants/variations
         if (isset($data['variations']) && is_array($data['variations'])) {
             // Delete existing variants and create new ones
-            Variant::where('product_id', $id)->delete();
+            ProductVariation::where('product_id', $id)->delete();
             if (!empty($data['variations'])) {
                 $this->saveVariants($id, $data['variations'], $data['selected_attributes'] ?? null, true);
             }
@@ -200,7 +200,7 @@ class ProductService
         }
 
         // Delete variants
-        $product->variants()->delete();
+        $product->variations()->delete();
 
         return $this->repository->delete($id);
     }
@@ -252,7 +252,7 @@ class ProductService
                     'is_available' => true,
                 ];
 
-                $variant = Variant::create($variantData);
+                $variant = ProductVariation::create($variantData);
 
                 // Attach attributes if provided
                 if (!empty($selectedAttributes)) {

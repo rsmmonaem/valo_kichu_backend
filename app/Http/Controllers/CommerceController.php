@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
@@ -21,7 +21,7 @@ class CommerceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes']);
+        $query = Product::with(['category', 'brand', 'reviews.user', 'images', 'variations.images']);
 
         // Filters
         // Category filter - support both 'category' and 'category_id'
@@ -40,15 +40,15 @@ class CommerceController extends Controller
         $searchTerm = $request->get('name') ?? $request->get('search');
         if ($searchTerm && !empty(trim($searchTerm))) {
             $query->where(function($q) use ($searchTerm) {
-                $q->where('title', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('product_code', 'like', '%' . $searchTerm . '%');
+                $q->where('name', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('slug', 'like', '%' . $searchTerm . '%');
             });
         }
         if ($request->has('min_price')) {
-            $query->where('price', '>=', $request->min_price);
+            $query->where('base_price', '>=', $request->min_price);
         }
         if ($request->has('max_price')) {
-            $query->where('price', '<=', $request->max_price);
+            $query->where('base_price', '<=', $request->max_price);
         }
         if ($request->has('is_new') && $request->is_new) {
             // Filter for new products only - sorting will be handled in sorting section
@@ -73,10 +73,10 @@ class CommerceController extends Controller
             }])->orderBy('popularity', 'desc');
         } elseif ($sorting === 'low_to_high') {
             // Sort by price ascending (low to high)
-            $query->orderBy('price', 'asc');
+            $query->orderBy('base_price', 'asc');
         } elseif ($sorting === 'high_to_low') {
             // Sort by price descending (high to low)
-            $query->orderBy('price', 'desc');
+            $query->orderBy('base_price', 'desc');
         } elseif ($sorting === 'newest' || $sorting === 'latest') {
             // Sort by creation date descending
             $query->orderBy('created_at', 'desc');
@@ -85,7 +85,7 @@ class CommerceController extends Controller
             $query->orderBy('created_at', 'asc');
         } else {
             // Default sorting or other valid column names
-            $validSortColumns = ['created_at', 'updated_at', 'price', 'title', 'discount', 'stock'];
+            $validSortColumns = ['created_at', 'updated_at', 'base_price', 'name', 'stock_quantity'];
             $sortColumn = in_array($sorting, $validSortColumns) ? $sorting : 'created_at';
             $sortOrder = $request->get('order', 'desc');
             $query->orderBy($sortColumn, $sortOrder);
@@ -115,7 +115,9 @@ class CommerceController extends Controller
 
     public function productList(Request $request)
     {
-        $products = Product::with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])->get();
+        $products = Product::where('is_active', true)
+            ->with(['category', 'brand', 'reviews.user', 'variations.images'])
+            ->get();
         
         $limit = $request->get('limit', 10);
         $offset = $request->get('offset', 1);
@@ -137,13 +139,14 @@ class CommerceController extends Controller
 
     public function productDetail($id, Request $request)
     {
-        $product = Product::with(['images', 'vendor', 'variants.images', 'variants.attributes', 'reviews.user', 'category', 'brand'])
+        $product = Product::with(['variations.images', 'reviews.user', 'category', 'brand'])
             ->findOrFail($id);
 
         // Get similar products
         $similarProducts = Product::where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
-            ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
+            ->where('is_active', true)
+            ->with(['category', 'brand', 'reviews.user', 'variations.images'])
             ->limit(10)
             ->get();
 
@@ -221,7 +224,7 @@ class CommerceController extends Controller
 
         foreach ($brands as $brand) {
             $products = Product::where('brand_id', $brand->id)
-                ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
+                ->with(['category', 'brand', 'reviews.user', 'variants.images', 'variants.attributes'])
                 ->get();
             if ($products->isEmpty()) {
                 continue;
@@ -249,7 +252,8 @@ class CommerceController extends Controller
     public function brandWiseProducts($brand_id, Request $request)
     {
         $products = Product::where('brand_id', $brand_id)
-            ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
+            ->where('is_active', true)
+            ->with(['category', 'brand', 'reviews.user', 'variations.images'])
             ->get();
         
         if ($products->isEmpty()) {
@@ -281,7 +285,8 @@ class CommerceController extends Controller
 
         foreach ($categories as $category) {
             $products = Product::where('category_id', $category->id)
-                ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
+                ->where('is_active', true)
+                ->with(['category', 'brand', 'reviews.user', 'images', 'variations.images'])
                 ->get();
             if ($products->isEmpty()) {
                 continue;
@@ -301,7 +306,7 @@ class CommerceController extends Controller
         $allCategoryIds = Category::getAllChildCategoryIds($category_id);
 
         $products = Product::whereIn('category_id', $allCategoryIds)
-            ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
+            ->with(['category', 'brand', 'reviews.user', 'variations.images'])
             ->get();
 
         if ($products->isEmpty()) {
@@ -333,18 +338,18 @@ class CommerceController extends Controller
         $user = $request->user();
         $products = collect();
 
+        $baseQuery = Product::where('is_active', true)
+            ->with(['category', 'brand', 'reviews.user', 'variations.images']);
+
         switch ($productType) {
             case 'newarrival':
-                $products = Product::where('is_available', true)
-                    ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
-                    ->orderBy('created_at', 'desc')
-                    ->get();
+                $products = (clone $baseQuery)->orderBy('created_at', 'desc')->get();
                 break;
 
             case 'discounted':
-                $products = Product::where('discount', '>', 0)
-                    ->where('is_available', true)
-                    ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
+                $products = (clone $baseQuery)
+                    ->whereColumn('sale_price', '<', 'base_price')
+                    ->where('sale_price', '>', 0)
                     ->orderBy('created_at', 'desc')
                     ->get();
                 break;
@@ -355,51 +360,36 @@ class CommerceController extends Controller
                     ->orderBy('total_sold', 'desc')
                     ->limit(10)
                     ->pluck('product_id');
-                $products = Product::whereIn('id', $topSelling)
-                    ->where('is_available', true)
-                    ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
-                    ->get();
+                $products = (clone $baseQuery)->whereIn('id', $topSelling)->get();
                 break;
 
             case 'best_selling':
-                $products = Product::where('discount', '>', 0)
-                    ->where('is_available', true)
-                    ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
-                    ->orderBy('discount', 'desc')
+                $products = (clone $baseQuery)
+                    ->whereColumn('sale_price', '<', 'base_price')
+                    ->where('sale_price', '>', 0)
+                    ->orderByRaw('(base_price - sale_price) DESC')
                     ->get();
                 break;
 
             case 'latest':
-                $products = Product::where('discount', '>', 0)
-                    ->where('is_available', true)
-                    ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
-                    ->orderBy('created_at', 'desc')
-                    ->limit(10)
-                    ->get();
+                $products = (clone $baseQuery)->orderBy('created_at', 'desc')->limit(10)->get();
                 break;
 
             case 'featured':
-                $featured = FeaturedProduct::with(['product.images', 'product.category', 'product.brand', 'product.vendor', 'product.reviews.user', 'product.variants.images', 'product.variants.attributes'])
-                    ->whereHas('product', function($q) {
-                        $q->where('is_available', true);
-                    })
-                    ->orderBy('created_at', 'desc')
-                    ->get();
-                $products = $featured->pluck('product');
+                $products = (clone $baseQuery)->where('is_featured', true)->orderBy('created_at', 'desc')->get();
                 break;
 
             case 'just_for_you':
                 if ($user) {
                     $lastPurchase = OrderItem::whereHas('order', function($q) use ($user) {
                         $q->where('user_id', $user->id);
-                    })->orderBy('created_at', 'desc')->first();
+                    })->with('product')->orderBy('created_at', 'desc')->first();
 
-                    if ($lastPurchase) {
+                    if ($lastPurchase && $lastPurchase->product) {
                         $lastCategory = $lastPurchase->product->category_id;
-                        $products = Product::where('category_id', $lastCategory)
-                            ->where('is_available', true)
+                        $products = (clone $baseQuery)
+                            ->where('category_id', $lastCategory)
                             ->where('id', '!=', $lastPurchase->product_id)
-                            ->with(['images', 'category', 'brand', 'vendor', 'reviews.user', 'variants.images', 'variants.attributes'])
                             ->orderBy('created_at', 'desc')
                             ->get();
                     }
@@ -407,20 +397,13 @@ class CommerceController extends Controller
                 break;
 
             case 'featured_deals':
-                $products = Product::where('is_available', true)
-                    ->with(['images', 'category', 'brand', 'vendor', 'orderItems', 'reviews.user', 'variants.images', 'variants.attributes'])
-                    ->get()
-                    ->map(function($product) {
-                        $product->total_sold = $product->orderItems->sum('quantity');
-                        $product->reviews_avg_rating = $product->reviews->avg('rating') ?? 0;
-                        return $product;
-                    })
-                    ->filter(function($product) {
-                        return $product->total_sold > 0 && $product->reviews_avg_rating >= 4.0;
-                    })
-                    ->sortByDesc('total_sold')
-                    ->values();
+                $products = (clone $baseQuery)
+                    ->where('is_deal_of_day', true)
+                    ->get();
                 break;
+            
+            default:
+                $products = (clone $baseQuery)->orderBy('created_at', 'desc')->get();
         }
 
         $limit = $request->get('limit', 10);
@@ -437,8 +420,8 @@ class CommerceController extends Controller
                 'count' => $total,
                 'limit' => $limit,
                 'offset' => $offset,
-                'current_page' => $offset,
-                'total_pages' => $totalPages,
+                'current_page' => (int) $offset,
+                'total_pages' => (int) $totalPages,
                 'products' => ProductResource::collection($paginated)
             ]
         ]);
@@ -448,7 +431,7 @@ class CommerceController extends Controller
     {
         $user = $request->user();
         $favourites = FavouriteProduct::where('user_id', $user->id)
-            ->with(['product.images', 'product.category', 'product.brand', 'product.vendor', 'product.reviews.user', 'product.variants.images', 'product.variants.attributes'])
+            ->with(['product.category', 'product.brand', 'product.reviews.user', 'product.images', 'product.variations.images'])
             ->get();
 
         $formattedFavourites = $favourites->map(function ($favourite) {
@@ -482,7 +465,7 @@ class CommerceController extends Controller
         ]);
 
         // Load the product relationship with all necessary data
-        $favourite->load(['product.images', 'product.category', 'product.brand', 'product.vendor', 'product.reviews.user', 'product.variants.images', 'product.variants.attributes']);
+        $favourite->load(['product.category', 'product.brand', 'product.reviews.user', 'product.variations.images']);
 
         return response()->json([
             'message' => 'Product added to favourites',
@@ -514,18 +497,65 @@ class CommerceController extends Controller
         return response()->json(['message' => 'Item removed from favourites'], 200);
     }
 
-    public function recommendedProducts()
+    public function recommendedProducts(Request $request)
     {
-        $recommended = RecommendedProduct::orderBy('id', 'desc')->first();
-        
-        if (!$recommended) {
-            return response()->json(['detail' => 'No recommended product found.'], 404);
+        $user = $request->user();
+        $query = Product::where('is_active', true)
+            ->with(['category', 'brand', 'reviews.user', 'variations.images']);
+
+        if ($user) {
+            // Get user's last orders to find preferred categories and price range
+            $lastOrderItems = OrderItem::whereHas('order', function($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })->with('product')->orderBy('created_at', 'desc')->limit(10)->get();
+
+            if ($lastOrderItems->isNotEmpty()) {
+                $categoryIds = $lastOrderItems->pluck('product.category_id')->unique()->filter()->toArray();
+                $avgPrice = $lastOrderItems->avg('price');
+
+                if (!empty($categoryIds)) {
+                    $query->whereIn('category_id', $categoryIds);
+                }
+
+                if ($avgPrice > 0) {
+                    $query->whereBetween('sale_price', [$avgPrice * 0.7, $avgPrice * 1.3]);
+                }
+            }
+        }
+
+        // Final query: random or latest
+        $products = $query->inRandomOrder()->limit(10)->get();
+
+        if ($products->isEmpty()) {
+            $products = Product::where('is_active', true)
+                ->with(['category', 'brand', 'reviews.user', 'images', 'variations.images'])
+                ->inRandomOrder()
+                ->limit(10)
+                ->get();
         }
 
         return response()->json([
-            'id' => $recommended->id,
-            'product' => new ProductResource($recommended->product),
-            'created_at' => $recommended->created_at
+            'products' => ProductResource::collection($products)
+        ]);
+    }
+
+    public function dealOfTheDay()
+    {
+        // For single-vendor, take a popular or latest discounted product
+        $deal = Product::where('is_active', true)
+            ->where('sale_price', '>', 0)
+            ->with(['category', 'brand', 'reviews.user', 'variations.images'])
+            ->orderBy('id', 'desc')
+            ->first();
+        
+        if (!$deal) {
+            return response()->json(['detail' => 'No deal found.'], 404);
+        }
+
+        return response()->json([
+            'id' => $deal->id,
+            'product' => new ProductResource($deal),
+            'created_at' => $deal->created_at
         ]);
     }
 
@@ -535,121 +565,4 @@ class CommerceController extends Controller
         return response()->json($notifications);
     }
 
-    public function vendorList()
-    {
-        $vendors = VendorUser::all();
-        return response()->json($vendors);
-    }
-
-    public function vendorDetail($id)
-    {
-        $vendor = VendorUser::findOrFail($id);
-        
-        // Calculate stats
-        $totalSold = OrderItem::whereHas('product', function($q) use ($vendor) {
-            $q->where('vendor_id', $vendor->id);
-        })->sum('quantity');
-
-        $avgRating = $vendor->vendorReviews()->avg('rating');
-        $ratingCount = $vendor->vendorReviews()->count();
-        $totalProduct = $vendor->products()->count();
-        $totalReview = $vendor->vendorReviews()->count();
-
-        return response()->json([
-            'id' => $vendor->id,
-            'email' => $vendor->email,
-            'first_name' => $vendor->first_name,
-            'last_name' => $vendor->last_name,
-            'phone_number' => $vendor->phone_number,
-            'profile_picture' => $vendor->profile_picture,
-            'total_sold' => $totalSold,
-            'average_rating' => round($avgRating, 2),
-            'rating_count' => $ratingCount,
-            'total_product' => $totalProduct,
-            'total_review' => $totalReview,
-            'shop' => [
-                'shop_name' => $vendor->shop_name,
-                'shop_address' => $vendor->shop_address,
-                'shop_contact_number' => $vendor->shop_contact_number,
-                'shop_image' => $vendor->shop_image,
-                'shop_banner' => $vendor->shop_banner,
-            ]
-        ]);
-    }
-
-    public function topVendors()
-    {
-        $topVendors = VendorUser::withCount(['products as total_sold' => function($q) {
-            $q->select(DB::raw('sum(order_items.quantity)'))
-              ->join('order_items', 'products.id', '=', 'order_items.product_id');
-        }])
-        ->orderBy('total_sold', 'desc')
-        ->limit(10)
-        ->get();
-
-        return response()->json($topVendors);
-    }
-
-    public function vendorProducts($id, Request $request)
-    {
-        $vendor = VendorUser::findOrFail($id);
-        $products = Product::where('vendor_id', $id);
-
-        if ($request->has('category_id')) {
-            $products->where('category_id', $request->category_id);
-        }
-        if ($request->has('brand_id')) {
-            $products->where('brand_id', $request->brand_id);
-        }
-        if ($request->has('search')) {
-            $products->where('title', 'like', '%' . $request->search . '%');
-        }
-
-        $products = $products->orderBy('created_at', 'desc')->get();
-
-        if ($products->isEmpty()) {
-            return response()->json(['error' => 'Products not found for this vendor'], 404);
-        }
-
-        $limit = $request->get('limit', 10);
-        $offset = $request->get('offset', 1);
-        $skip = ($offset - 1) * $limit;
-
-        $paginated = $products->skip($skip)->take($limit);
-        $total = $products->count();
-        $totalPages = ceil($total / $limit);
-
-        return response()->json([
-            'count' => $total,
-            'limit' => $limit,
-            'offset' => $offset,
-            'current_page' => $offset,
-            'total_pages' => $totalPages,
-            'products' => ProductResource::collection($paginated)
-        ]);
-    }
-
-    public function vendorBrands($id)
-    {
-        $vendorProducts = Product::where('vendor_id', $id)->pluck('brand_id')->unique();
-        $brands = Brand::whereIn('id', $vendorProducts)->get();
-
-        if ($brands->isEmpty()) {
-            return response()->json(['error' => 'No brands found for this vendor'], 404);
-        }
-
-        return response()->json($brands);
-    }
-
-    public function vendorCategories($id)
-    {
-        $vendorProducts = Product::where('vendor_id', $id)->pluck('category_id')->unique();
-        $categories = Category::whereIn('id', $vendorProducts)->get();
-
-        if ($categories->isEmpty()) {
-            return response()->json(['error' => 'No categories found for this vendor'], 404);
-        }
-
-        return response()->json($categories);
-    }
 }

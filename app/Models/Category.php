@@ -32,4 +32,26 @@ class Category extends Model
     {
         return $this->hasMany(Product::class);
     }
+
+    public function subcategories()
+    {
+        return $this->hasMany(Category::class, 'parent_id');
+    }
+
+    public function images()
+    {
+        return $this->morphMany(Image::class, 'imageable');
+    }
+
+    public static function getAllChildCategoryIds($categoryId)
+    {
+        $categoryIds = [$categoryId];
+        $children = self::where('parent_id', $categoryId)->pluck('id')->toArray();
+        
+        foreach ($children as $childId) {
+            $categoryIds = array_merge($categoryIds, self::getAllChildCategoryIds($childId));
+        }
+        
+        return array_unique($categoryIds);
+    }
 }

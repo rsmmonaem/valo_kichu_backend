@@ -9,64 +9,50 @@ class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Map DB status to Dart Enum String
+        $statusMap = [
+            'pending' => 'Pending',
+            'confirmed' => 'Pending',
+            'processing' => 'Packaging', 
+            'ready_to_ship_bd' => 'Packaging',
+            'shipping' => 'Out of Delivery',
+            'delivered' => 'Delivered',
+            'purchased_by_admin' => 'Packaging',
+            'cancelled' => 'Cancelled',
+            'refunded' => 'Cancelled',
+        ];
+
+        $paymentStatusMap = [
+            'paid' => 'Complete',
+            'unpaid' => 'Pending',
+            'partial' => 'Pending',
+        ];
+
         return [
             'id' => $this->id,
-            'total_price' => $this->total_price,
-            'status' => $this->status,
-            'payment_status' => $this->payment_status,
+            'total_price' => (float) $this->total_price,
+            'status' => $statusMap[$this->status] ?? 'Pending',
+            'payment_status' => $paymentStatusMap[$this->payment_status] ?? 'Pending',
             'transaction_id' => $this->transaction_id,
-            'transaction_account_number' => $this->transaction_account_number,
+            'transaction_account_number' => $this->payment?->transaction_id, // Map from payment relation
             'payment_method' => $this->payment_method,
             'user' => $this->whenLoaded('user', function() {
-                return [
-                    'id' => $this->user->id,
-                    'first_name' => $this->user->first_name,
-                    'last_name' => $this->user->last_name,
-                    'image' => $this->user->image ? asset('storage/' . $this->user->image) : null,
-                    'phone_number' => $this->user->phone_number,
-                    'email' => $this->user->email,
-                ];
+                return new UserResource($this->user);
             }),
             'address' => $this->whenLoaded('address', function() {
-                return [
-                    'id' => $this->address->id,
-                    'title' => $this->address->title,
-                    'name' => $this->address->name,
-                    'phone' => $this->address->phone,
-                    'email' => $this->address->email,
-                    'address_line1' => $this->address->address_line1,
-                    'address_line2' => $this->address->address_line2,
-                    'city' => $this->address->city,
-                    'district' => $this->address->district,
-                    'state' => $this->address->state,
-                    'postal_code' => $this->address->postal_code,
-                    'country' => $this->address->country,
-                ];
+                return new AddressResource($this->address);
             }),
-            'products' => $this->whenLoaded('orderItems', function() {
-                return $this->orderItems->map(function($item) {
+            'products' => $this->whenLoaded('items', function() {
+                return $this->items->map(function($item) {
                     return [
-                        'product' => [
-                            'id' => $item->product->id,
-                            'name' => $item->product->getName(),
-                            'price' => $item->product->price,
-                            'discount_price' => $item->product->discount_price,
-                            'images' => $item->product->images->map(function($img) {
-                                return ['image' => asset('storage/' . $img->image)];
-                            }),
-                        ],
-                        'variant' => $item->variant ? [
-                            'id' => $item->variant->id,
-                            'variant_name' => $item->variant->variant_name,
-                            'price' => $item->variant->price,
-                            'discount_price' => $item->variant->discount_price,
-                        ] : null,
-                        'quantity' => $item->quantity,
-                        'price' => $item->price,
+                        'product' => new ProductResource($item->product),
+                        'variant' => $item->product_variation_id, // Dart expects user ID
+                        'quantity' => (int) $item->quantity,
+                        'price' => (string) $item->unit_price, // Dart expects String
                     ];
                 });
             }),
-            'created_at' => $this->created_at?->toDateTimeString(),
+            'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 }

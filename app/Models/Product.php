@@ -25,7 +25,6 @@ class Product extends Model
         'is_active',
         'is_featured',
         'is_deal_of_day',
-        'images',
     ];
 
     protected $casts = [
@@ -35,21 +34,56 @@ class Product extends Model
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
         'is_deal_of_day' => 'boolean',
-        'images' => 'array',
     ];
+
+    protected $appends = [
+        'price',
+        'discount',
+        'discount_type'
+    ];
+
+    public function getPriceAttribute()
+    {
+        return $this->sale_price ?? $this->base_price;
+    }
+
+    public function getDiscountAttribute()
+    {
+        return 0;
+    }
+
+    public function getDiscountTypeAttribute()
+    {
+        return 'flat';
+    }
 
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
+    
     public function variations()
     {
         return $this->hasMany(ProductVariation::class);
+    }
+    
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
     }
 
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by_admin_id');
+    }
+
+    public function images()
+    {
+        return $this->morphMany(Image::class, 'imageable');
     }
 }

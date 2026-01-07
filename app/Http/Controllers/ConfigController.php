@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessSetting;
@@ -174,7 +174,7 @@ class ConfigController extends Controller
             'currency_decimal_point_setting' => BusinessSetting::getValue('currency_decimal_point_setting', 2),
             'currency_symbol_position' => BusinessSetting::getValue('currency_symbol_position', 'left'),
             'business_name' => BusinessSetting::getValue('business_name', 'Tradlink'),
-            'software_type' => BusinessSetting::getValue('software_type', 'single_vendor'),
+            'software_type' => 'single_vendor',
             'app_logo' => BusinessSetting::getValue('app_logo', null),
             'app_name' => BusinessSetting::getValue('app_name', null),
             'terms_and_conditions' => $termsAndConditions?->content,
@@ -182,15 +182,13 @@ class ConfigController extends Controller
             'about_us' => $aboutUs?->content,
             'delivery_type' => BusinessSetting::getValue('delivery_type') ?? null,
             'delivery_method' => BusinessSetting::getValue('delivery_method') ?? null,
-            'currency_type' => BusinessSetting::getValue('currency_type', 'single'),
-            "is_verify_required" => BusinessSetting::getValue('is_verify_required')==1 ? true : false,
-            "number_verify_required" => BusinessSetting::getValue('number_verify_required')==1 ? true : false,
-            "email_verify_required" => BusinessSetting::getValue('email_verify_required')==1 ? true : false,
+            'currency_type' => 'single',
+            "is_verify_required" => (bool) BusinessSetting::getValue('is_verify_required'),
+            "number_verify_required" => (bool) BusinessSetting::getValue('number_verify_required'),
+            "email_verify_required" => (bool) BusinessSetting::getValue('email_verify_required'),
             'currency_list' => $currencies,
             'system_default_currency' => $defaultCurrency,
             'user_app_version_control' => $userAppVersions,
-            'seller_app_version_control' => $sellerAppVersions,
-            'delivery_app_version_control' => $deliveryAppVersions,
             'offline_payment' => $offlinePaymentData,
             'online_payment' => $onlinePaymentData,
             'cash_on_delivery' => $cashOnDelivery,

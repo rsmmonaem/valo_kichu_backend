@@ -14,16 +14,41 @@ class ProductVariation extends Model
         'price_modifier',
         'stock_quantity',
         'sku',
-        'images',
     ];
 
     protected $casts = [
         'price_modifier' => 'decimal:2',
-        'images' => 'array',
     ];
+
+    protected $appends = [
+        'price',
+        'discount',
+        'discount_type'
+    ];
+
+    public function getPriceAttribute()
+    {
+        $basePrice = $this->product->sale_price ?? $this->product->base_price;
+        return (float) ($basePrice + $this->price_modifier);
+    }
+
+    public function getDiscountAttribute()
+    {
+        return $this->product->discount;
+    }
+
+    public function getDiscountTypeAttribute()
+    {
+        return $this->product->discount_type;
+    }
 
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function images()
+    {
+        return $this->morphMany(Image::class, 'imageable');
     }
 }

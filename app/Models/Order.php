@@ -8,6 +8,15 @@ use App\Models\OrderItem;
 
 class Order extends Model
 {
+    protected static function booted()
+    {
+        static::creating(function ($order) {
+            if (empty($order->order_number)) {
+                $order->order_number = 'ORD-' . strtoupper(uniqid());
+            }
+        });
+    }
+
     protected $fillable = [
         'user_id',
         'order_number',
@@ -15,6 +24,7 @@ class Order extends Model
         'shipping_cost',
         'discount',
         'total_amount',
+        'total_price',
         'currency',
         'exchange_rate',
         'status',
@@ -24,6 +34,9 @@ class Order extends Model
         'contact_number',
         'notes',
         'tracking_id',
+        'address_id',
+        'payment_id',
+        'transaction_id',
     ];
 
     protected $casts = [
@@ -42,5 +55,15 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function address()
+    {
+        return $this->belongsTo(Address::class, 'address_id');
+    }
+
+    public function payment()
+    {
+        return $this->belongsTo(PaymentInfo::class, 'payment_id');
     }
 }
