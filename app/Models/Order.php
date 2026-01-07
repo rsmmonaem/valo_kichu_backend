@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
+use App\Models\OrderItem;
+
+class Order extends Model
+{
+    protected $fillable = [
+        'user_id',
+        'order_number',
+        'subtotal',
+        'shipping_cost',
+        'discount',
+        'total_amount',
+        'currency',
+        'exchange_rate',
+        'status',
+        'payment_status',
+        'payment_method',
+        'shipping_address',
+        'contact_number',
+        'notes',
+        'tracking_id',
+    ];
+
+    protected $casts = [
+        'subtotal' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
+        'discount' => 'decimal:2',
+        'total_amount' => 'decimal:2',
+        'exchange_rate' => 'decimal:4',
+    ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function items()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+}

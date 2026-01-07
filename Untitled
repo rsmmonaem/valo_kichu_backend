@@ -1,0 +1,18 @@
+mkdir -p .vscode && cat << 'EOF' > .vscode/settings.json
+{
+  "cursor.ignore": [
+    "**/node_modules/**",
+    "**/vendor/**",
+    "**/storage/**",
+    "**/bootstrap/cache/**"
+  ],
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/vendor": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/vendor": true
+  }
+}
+EOF
