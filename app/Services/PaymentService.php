@@ -7,6 +7,8 @@ use App\Models\PaymentGateway;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
+use App\Models\BusinessSetting;
+
 class PaymentService
 {
     public function generateTranId(): string
@@ -33,14 +35,39 @@ class PaymentService
             'created_by' => $user?->id,
         ]);
 
-        // Get gateway configuration
-        $config = PaymentGateway::where(function($query) use ($gatewayName) {
-                $query->where('gateway', $gatewayName)
-                      ->orWhere('key', $gatewayName);
-            })
+        // Handle Cash on Delivery (COD) separately
+        if (in_array($gatewayName, ['cod', 'cash_on_delivery'])) {
+            $codEnabled = BusinessSetting::getValue('cash_on_delivery', true);
+            if (!$codEnabled) {
+                $payment->status = PaymentInfo::STATUS_FAILED;
+                $payment->save();
+                return [
+                    'data' => [
+                        'status' => 'FAILED',
+                        'message' => 'Cash on Delivery is disabled',
+                        'redirect_url' => null,
+                        'payment' => $payment,
+                    ],
+                    'status' => 400
+                ];
+            }
+            // COD is enabled, proceed to success (Pending)
+            $payment->status = PaymentInfo::STATUS_PENDING;
+            $payment->save();
+            return [
+                'data' => [
+                    'status' => 'SUCCESS',
+                    'redirect_url' => null,
+                    'payment' => $payment,
+                ],
+                'status' => 201
+            ];
+        }
+
+        // Get gateway configuration for Online Gateways
+        $config = PaymentGateway::where('name', $gatewayName)
             ->where(function($query) {
-                $query->where('enable', true)
-                      ->orWhere('is_active', true);
+                $query->where('is_active', true);
             })
             ->first();
 

@@ -3,6 +3,8 @@ import api from '../../services/api';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 
 const Categories = () => {
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
     const [formData, setFormData] = useState({ name: '', image: '', is_active: true });
@@ -14,7 +16,7 @@ const Categories = () => {
     const fetchCategories = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get('/admin/categories');
+            const { data } = await api.get('/admin/v1/categories');
             setCategories(data || []);
         } catch (error) {
             console.error(error);
@@ -27,9 +29,9 @@ const Categories = () => {
         e.preventDefault();
         try {
             if (editingCategory) {
-                await api.put(`/admin/categories/${editingCategory.id}`, formData);
+                await api.put(`/admin/v1/categories/${editingCategory.id}`, formData);
             } else {
-                await api.post('/admin/categories', formData);
+                await api.post('/admin/v1/categories', formData);
             }
             setShowModal(false);
             fetchCategories();
@@ -43,7 +45,7 @@ const Categories = () => {
     const handleDelete = async (id) => {
         if (!window.confirm("Are you sure?")) return;
         try {
-            await api.delete(`/admin/categories/${id}`);
+            await api.delete(`/admin/v1/categories/${id}`);
             fetchCategories();
         } catch (error) {
             console.error("Failed to delete category", error);
@@ -116,10 +118,53 @@ const Categories = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Category Image</label>
+
+                                {/* Image Preview */}
+                                {formData.image && (
+                                    <div className="mb-3 p-2 border rounded-lg bg-gray-50">
+                                        <img src={formData.image} alt="Preview" className="w-full h-32 object-cover rounded" />
+                                    </div>
+                                )}
+
+                                {/* Upload Button */}
+                                <div className="flex gap-2 mb-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        id="category-image-upload"
+                                        onChange={async (e) => {
+                                            const file = e.target.files[0];
+                                            if (!file) return;
+                                            const formDataUpload = new FormData();
+                                            formDataUpload.append('image', file);
+                                            formDataUpload.append('folder', 'categories');
+                                            try {
+                                                const { data } = await api.post('/admin/v1/upload', formDataUpload, {
+                                                    headers: { 'Content-Type': 'multipart/form-data' }
+                                                });
+                                                setFormData({ ...formData, image: data.url });
+                                            } catch (error) {
+                                                console.error('Upload failed', error);
+                                                alert('Upload failed');
+                                            }
+                                        }}
+                                    />
+                                    <label
+                                        htmlFor="category-image-upload"
+                                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 cursor-pointer"
+                                    >
+                                        Upload Image
+                                    </label>
+                                    <span className="text-sm text-gray-500 self-center">or</span>
+                                </div>
+
+                                {/* URL Input */}
                                 <input
                                     type="text"
                                     className="w-full border rounded-lg p-2"
+                                    placeholder="Or paste image URL..."
                                     value={formData.image}
                                     onChange={e => setFormData({ ...formData, image: e.target.value })}
                                 />

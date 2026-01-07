@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Plus, Trash2, Save, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Save, Image as ImageIcon, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Appearance = () => {
@@ -18,8 +18,8 @@ const Appearance = () => {
         setLoading(true);
         try {
             const [settingsRes, bannersRes] = await Promise.all([
-                api.get('/admin/settings'),
-                api.get('/admin/banners')
+                api.get('/admin/v1/settings'),
+                api.get('/admin/v1/banners')
             ]);
 
             // Map settings list to object
@@ -43,7 +43,7 @@ const Appearance = () => {
                 key,
                 value: settings[key]
             }));
-            await api.post('/admin/settings', { settings: settingsArray });
+            await api.post('/admin/v1/settings', { settings: settingsArray });
             toast.success("Settings saved successfully!");
         } catch (error) {
             toast.error("Failed to save settings");
@@ -58,7 +58,7 @@ const Appearance = () => {
         if (id) {
             if (!window.confirm("Are you sure you want to delete this banner?")) return;
             try {
-                await api.delete(`/admin/banners/${id}`);
+                await api.delete(`/admin/v1/banners/${id}`);
                 toast.success("Banner deleted");
             } catch (error) {
                 toast.error("Failed to delete banner");
@@ -79,9 +79,9 @@ const Appearance = () => {
         try {
             const savePromises = banners.map(banner => {
                 if (banner.id) {
-                    return api.put(`/admin/banners/${banner.id}`, banner);
+                    return api.put(`/admin/v1/banners/${banner.id}`, banner);
                 } else {
-                    return api.post('/admin/banners', banner);
+                    return api.post('/admin/v1/banners', banner);
                 }
             });
             await Promise.all(savePromises);
@@ -89,6 +89,27 @@ const Appearance = () => {
             fetchData(); // Refresh to get IDs for new banners
         } catch (error) {
             toast.error("Failed to save banners");
+        }
+    };
+
+    const handleImageUpload = async (e, field) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('folder', 'business_profile'); // Logo goes to business_profile folder
+
+        const toastId = toast.loading("Uploading...");
+        try {
+            const { data } = await api.post('/admin/v1/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            setSettings(prev => ({ ...prev, [field]: data.path }));
+            toast.success("Uploaded successfully!", { id: toastId });
+        } catch (error) {
+            console.error("Upload failed", error);
+            toast.error("Upload failed", { id: toastId });
         }
     };
 
@@ -101,29 +122,98 @@ const Appearance = () => {
             {/* General Settings */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <ImageIcon size={20} className="text-blue-600" /> Site Logo
+                    <Settings size={20} className="text-blue-600" /> Business Settings
                 </h2>
                 <div className="space-y-4 max-w-xl">
+                    {/* Site Name */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
                         <input
                             type="text"
                             className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="https://..."
-                            value={settings.site_logo}
-                            onChange={e => setSettings({ ...settings, site_logo: e.target.value })}
+                            placeholder="My E-Commerce Store"
+                            value={settings.site_name || ''}
+                            onChange={e => setSettings({ ...settings, site_name: e.target.value })}
                         />
                     </div>
-                    {settings.site_logo && (
-                        <div className="mt-2 p-2 border rounded-lg bg-gray-50 flex justify-center">
-                            <img src={settings.site_logo} alt="Logo Preview" className="h-12 object-contain" />
+
+                    {/* Logo */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                        <div className="flex items-center gap-4">
+                            <div className="w-24 h-24 border rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
+                                {settings.site_logo ? (
+                                    <img
+                                        src={settings.site_logo?.startsWith('http') ? settings.site_logo : `/storage/${settings.site_logo}`}
+                                        alt="Logo"
+                                        className="w-full h-full object-contain p-2"
+                                    />
+                                ) : (
+                                    <ImageIcon className="text-gray-400" size={32} />
+                                )}
+                            </div>
+                            <div>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    id="logo-upload"
+                                    onChange={(e) => handleImageUpload(e, 'site_logo')}
+                                />
+                                <label
+                                    htmlFor="logo-upload"
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 cursor-pointer inline-flex items-center gap-2"
+                                >
+                                    <ImageIcon size={16} /> Choose Image
+                                </label>
+                                <p className="text-xs text-gray-500 mt-2">Recommended size: 200x50px</p>
+                            </div>
                         </div>
-                    )}
+                    </div>
+
+                    {/* Colors */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="color"
+                                    className="h-10 w-10 border rounded cursor-pointer"
+                                    value={settings.primary_color || '#2563eb'}
+                                    onChange={e => setSettings({ ...settings, primary_color: e.target.value })}
+                                />
+                                <input
+                                    type="text"
+                                    className="flex-1 border rounded-lg p-2"
+                                    value={settings.primary_color || '#2563eb'}
+                                    onChange={e => setSettings({ ...settings, primary_color: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Color</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="color"
+                                    className="h-10 w-10 border rounded cursor-pointer"
+                                    value={settings.secondary_color || '#1e293b'}
+                                    onChange={e => setSettings({ ...settings, secondary_color: e.target.value })}
+                                />
+                                <input
+                                    type="text"
+                                    className="flex-1 border rounded-lg p-2"
+                                    value={settings.secondary_color || '#1e293b'}
+                                    onChange={e => setSettings({ ...settings, secondary_color: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                     <button
                         onClick={handleSaveSettings}
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2"
+                        className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 mt-4"
                     >
-                        <Save size={18} /> Save Site Logo
+                        <Save size={18} /> Save Settings
                     </button>
                 </div>
             </div>

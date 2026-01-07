@@ -9,6 +9,15 @@ const api = axios.create({
     withCredentials: true, // Important for Sanctum cookie
 });
 
+// Interceptor to add Bearer token to requests
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
 // Interceptor to handle 401 Unauthorized
 api.interceptors.response.use(
     (response) => response,

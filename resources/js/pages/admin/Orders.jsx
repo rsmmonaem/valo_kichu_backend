@@ -3,17 +3,68 @@ import api from '../../services/api';
 import { Eye, Clock, CheckCircle, Truck, Package } from 'lucide-react';
 
 const Orders = () => {
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [statusUpdating, setStatusUpdating] = useState(false);
+    const [activeStatus, setActiveStatus] = useState('all');
+    const [stats, setStats] = useState({
+        all: 0,
+        pending: 0,
+        confirmed: 0,
+        purchased_by_admin: 0,
+        ready_to_ship_bd: 0,
+        shipping: 0,
+        delivered: 0,
+        cancelled: 0,
+        refunded: 0
+    });
+
+    const statusTabs = [
+        { key: 'all', label: 'All Orders', color: 'gray' },
+        { key: 'pending', label: 'Pending', color: 'yellow' },
+        { key: 'confirmed', label: 'Confirmed', color: 'blue' },
+        { key: 'purchased_by_admin', label: 'Purchased', color: 'indigo' },
+        { key: 'ready_to_ship_bd', label: 'Ready to Ship', color: 'purple' },
+        { key: 'shipping', label: 'Shipping', color: 'orange' },
+        { key: 'delivered', label: 'Delivered', color: 'green' },
+        { key: 'cancelled', label: 'Cancelled', color: 'red' },
+        { key: 'refunded', label: 'Refunded', color: 'pink' }
+    ];
 
     useEffect(() => {
         fetchOrders();
-    }, []);
+        fetchStats();
+    }, [activeStatus]);
+
+    const fetchStats = async () => {
+        try {
+            // Fetch all orders to calculate stats
+            const { data } = await api.get('/admin/v1/orders?per_page=1000');
+            const allOrders = data.data || [];
+
+            const newStats = {
+                all: allOrders.length,
+                pending: allOrders.filter(o => o.status === 'pending').length,
+                confirmed: allOrders.filter(o => o.status === 'confirmed').length,
+                purchased_by_admin: allOrders.filter(o => o.status === 'purchased_by_admin').length,
+                ready_to_ship_bd: allOrders.filter(o => o.status === 'ready_to_ship_bd').length,
+                shipping: allOrders.filter(o => o.status === 'shipping').length,
+                delivered: allOrders.filter(o => o.status === 'delivered').length,
+                cancelled: allOrders.filter(o => o.status === 'cancelled').length,
+                refunded: allOrders.filter(o => o.status === 'refunded').length
+            };
+            setStats(newStats);
+        } catch (error) {
+            console.error('Failed to fetch stats', error);
+        }
+    };
 
     const fetchOrders = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get('/admin/orders');
+            const params = activeStatus !== 'all' ? { status: activeStatus } : {};
+            const { data } = await api.get('/admin/v1/orders', { params });
             setOrders(data.data || []);
         } catch (error) {
             console.error(error);
@@ -23,11 +74,12 @@ const Orders = () => {
     };
 
     const updateStatus = async (orderId, newStatus) => {
-        if (!window.confirm(`Update order status to ${newStatus}?`)) return;
+        if (!window.confirm(`Update order status to ${newStatus.replace(/_/g, ' ')}?`)) return;
         setStatusUpdating(true);
         try {
-            await api.put(`/admin/orders/${orderId}`, { status: newStatus });
+            await api.put(`/admin/v1/orders/${orderId}`, { status: newStatus });
             fetchOrders();
+            fetchStats(); // Refresh stats after status change
             // Close modal if open on this order, or update local state
             if (selectedOrder && selectedOrder.id === orderId) {
                 setSelectedOrder({ ...selectedOrder, status: newStatus });
@@ -44,13 +96,26 @@ const Orders = () => {
         const styles = {
             pending: 'bg-yellow-100 text-yellow-700',
             confirmed: 'bg-blue-100 text-blue-700',
-            shipped: 'bg-purple-100 text-purple-700',
+            purchased_by_admin: 'bg-indigo-100 text-indigo-700',
+            ready_to_ship_bd: 'bg-purple-100 text-purple-700',
+            shipping: 'bg-orange-100 text-orange-700',
             delivered: 'bg-green-100 text-green-700',
             cancelled: 'bg-red-100 text-red-700',
+            refunded: 'bg-pink-100 text-pink-700',
+        };
+        const labels = {
+            pending: 'Pending',
+            confirmed: 'Confirmed',
+            purchased_by_admin: 'Purchased',
+            ready_to_ship_bd: 'Ready to Ship',
+            shipping: 'Shipping',
+            delivered: 'Delivered',
+            cancelled: 'Cancelled',
+            refunded: 'Refunded'
         };
         return (
             <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${styles[status] || 'bg-gray-100'}`}>
-                {status.replace('_', ' ')}
+                {labels[status] || status.replace('_', ' ')}
             </span>
         );
     };
@@ -58,6 +123,30 @@ const Orders = () => {
     return (
         <div>
             <h1 className="text-2xl font-bold text-gray-800 mb-6">Orders</h1>
+
+            {/* Status Tabs */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-x-auto">
+                <div className="flex gap-2 p-4 min-w-max">
+                    {statusTabs.map(tab => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveStatus(tab.key)}
+                            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${activeStatus === tab.key
+                                ? `bg-${tab.color}-100 text-${tab.color}-700 border-2 border-${tab.color}-300`
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-2 border-transparent'
+                                }`}
+                        >
+                            {tab.label}
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeStatus === tab.key
+                                ? `bg-${tab.color}-200 text-${tab.color}-800`
+                                : 'bg-gray-200 text-gray-700'
+                                }`}>
+                                {stats[tab.key]}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
@@ -87,7 +176,7 @@ const Orders = () => {
                                             </div>
                                         </td>
                                         <td className="p-4 text-sm text-gray-600">{new Date(order.created_at).toLocaleDateString()}</td>
-                                        <td className="p-4 font-bold">৳ {order.total_amount}</td>
+                                        <td className="p-4 font-bold">৳ {order.total_price}</td>
                                         <td className="p-4">
                                             <span className={`px-2 py-1 rounded text-xs ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                                                 {order.payment_status}
@@ -131,14 +220,14 @@ const Orders = () => {
                                 <div>
                                     <h3 className="text-xs uppercase text-gray-500 font-bold mb-1">Status</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'].map(s => (
+                                        {['pending', 'confirmed', 'purchased_by_admin', 'ready_to_ship_bd', 'shipping', 'delivered', 'cancelled', 'refunded'].map(s => (
                                             <button
                                                 key={s}
                                                 disabled={statusUpdating}
                                                 onClick={() => updateStatus(selectedOrder.id, s)}
-                                                className={`px-2 py-1 text-xs rounded border ${selectedOrder.status === s ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}
+                                                className={`px-3 py-1.5 text-xs rounded border font-medium ${selectedOrder.status === s ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}
                                             >
-                                                {s}
+                                                {s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                             </button>
                                         ))}
                                     </div>

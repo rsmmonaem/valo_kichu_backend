@@ -46,9 +46,9 @@ class OrderResource extends JsonResource
                 return $this->items->map(function($item) {
                     return [
                         'product' => new ProductResource($item->product),
-                        'variant' => $item->product_variation_id, // Dart expects user ID
+                        'variant' => $item->product_variation_id,
                         'quantity' => (int) $item->quantity,
-                        'price' => (string) $item->unit_price, // Dart expects String
+                        'price' => (string) $item->unit_price,
                     ];
                 });
             }),

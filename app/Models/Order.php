@@ -23,7 +23,6 @@ class Order extends Model
         'subtotal',
         'shipping_cost',
         'discount',
-        'total_amount',
         'total_price',
         'currency',
         'exchange_rate',

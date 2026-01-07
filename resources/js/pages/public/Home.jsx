@@ -69,7 +69,7 @@ const Home = () => {
                             <ul>
                                 {categories.slice(0, 12).map(cat => (
                                     <li key={cat.id}>
-                                        <Link to={`/products?category=${cat.slug}`} className="block px-4 py-2 text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 border-b border-gray-50 flex items-center justify-between group">
+                                        <Link to={`/products?category=${cat.slug}`} className="block px-4 py-2 text-sm text-gray-600 hover:bg-primary/5 hover:text-primary border-b border-gray-50 flex items-center justify-between group">
                                             {cat.name}
                                             <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </Link>
@@ -90,7 +90,7 @@ const Home = () => {
             <section className="py-8 bg-white mb-4">
                 <div className="container mx-auto px-4">
                     <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                        <span className="w-1 h-6 bg-red-600 rounded-full"></span>
+                        <span className="w-1 h-6 bg-primary rounded-full"></span>
                         Shop by Category
                     </h2>
 
@@ -114,9 +114,9 @@ const Home = () => {
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-10">
                         <h2 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-3">
-                            <span className="h-[2px] w-8 bg-red-600"></span>
+                            <span className="h-[2px] w-8 bg-primary"></span>
                             Recommended For You
-                            <span className="h-[2px] w-8 bg-red-600"></span>
+                            <span className="h-[2px] w-8 bg-primary"></span>
                         </h2>
                         <p className="text-gray-500 mt-2">Personalized picks based on trending items</p>
                     </div>
@@ -129,7 +129,7 @@ const Home = () => {
                     </div>
 
                     <div className="text-center mt-10">
-                        <button className="bg-white border-2 border-red-600 text-red-600 px-10 py-3 rounded-full font-bold hover:bg-red-600 hover:text-white transition shadow-sm">
+                        <button className="bg-white border-2 border-primary text-primary px-10 py-3 rounded-full font-bold hover:bg-primary hover:text-white transition shadow-sm">
                             Load More Products
                         </button>
                     </div>
@@ -144,10 +144,10 @@ const CategorySection = ({ title, categorySlug, products, loading }) => (
         <div className="container mx-auto px-4">
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-gray-800 uppercase flex items-center gap-3">
-                    <span className="bg-red-100 text-red-600 p-1.5 rounded-lg"><Star size={20} className="fill-red-600" /></span>
+                    <span className="bg-primary/10 text-primary p-1.5 rounded-lg"><Star size={20} className="fill-primary" /></span>
                     {title}
                 </h3>
-                <Link to={`/products?category=${categorySlug}`} className="text-sm font-semibold text-gray-500 hover:text-red-600 flex items-center gap-1 transition">
+                <Link to={`/products?category=${categorySlug}`} className="text-sm font-semibold text-gray-500 hover:text-primary flex items-center gap-1 transition">
                     View All <ChevronRight size={16} />
                 </Link>
             </div>
@@ -170,7 +170,7 @@ const CategorySection = ({ title, categorySlug, products, loading }) => (
 );
 
 const ProductCard = ({ product }) => (
-    <Link to={`/products/${product.id}`} className="group bg-white rounded-xl border border-gray-100 hover:border-red-200 hover:shadow-lg transition duration-300 overflow-hidden flex flex-col h-full relative">
+    <Link to={`/products/${product.id}`} className="group bg-white rounded-xl border border-gray-100 hover:border-primary/30 hover:shadow-lg transition duration-300 overflow-hidden flex flex-col h-full relative">
         <div className="aspect-square bg-gray-100 relative overflow-hidden">
             {product.images && product.images.length > 0 ? (
                 <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
@@ -182,19 +182,19 @@ const ProductCard = ({ product }) => (
 
             {/* Discount Badge */}
             {product.sale_price && (
-                <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                <div className="absolute top-2 left-2 bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
                     -{Math.round(((product.base_price - product.sale_price) / product.base_price) * 100)}%
                 </div>
             )}
         </div>
 
         <div className="p-3 flex flex-col flex-grow">
-            <h4 className="text-sm text-gray-700 font-medium mb-1 line-clamp-2 leading-relaxed group-hover:text-red-600 transition" title={product.name}>
+            <h4 className="text-sm text-gray-700 font-medium mb-1 line-clamp-2 leading-relaxed group-hover:text-primary transition" title={product.name}>
                 {product.name}
             </h4>
             <div className="mt-auto pt-2">
                 <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-lg font-bold text-red-600">৳{product.sale_price || product.base_price}</span>
+                    <span className="text-lg font-bold text-primary">৳{product.sale_price || product.base_price}</span>
                     {product.sale_price && (
                         <span className="text-xs text-gray-400 line-through">৳{product.base_price}</span>
                     )}
@@ -258,12 +258,12 @@ const CategoryCarousel = ({ categories }) => {
                         {cat.image ? (
                             <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-red-100 bg-red-50 text-2xl font-bold">
+                            <div className="w-full h-full flex items-center justify-center text-primary/10 bg-primary/5 text-2xl font-bold text-primary">
                                 {cat.name.charAt(0)}
                             </div>
                         )}
                     </div>
-                    <span className="text-center text-sm font-medium text-gray-700 group-hover:text-red-600 line-clamp-2">{cat.name}</span>
+                    <span className="text-center text-sm font-medium text-gray-700 group-hover:text-primary line-clamp-2">{cat.name}</span>
                 </Link>
             ))}
         </div>
@@ -305,17 +305,17 @@ const HeroSlider = ({ banners }) => {
                     className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 flex flex-col justify-center px-6 md:px-16 text-white space-y-4">
-                    <span className="inline-block bg-red-600 text-white text-[10px] md:text-xs font-bold px-3 py-1 rounded-full w-fit uppercase">Direct from 1688</span>
+                    <span className="inline-block bg-primary text-white text-[10px] md:text-xs font-bold px-3 py-1 rounded-full w-fit uppercase">Direct from 1688</span>
                     <h2 className="text-2xl md:text-5xl font-extrabold leading-tight">
-                        Import Business <br /> <span className="text-red-500">Made Simple</span>
+                        Import Business <br /> <span className="text-primary">Made Simple</span>
                     </h2>
                     <div className="flex flex-col sm:flex-row gap-4 text-xs md:text-sm">
                         <div className="flex items-center gap-2">
-                            <Ship size={18} className="text-red-500" />
+                            <Ship size={18} className="text-primary" />
                             <span>By Sea: 25-35 Days</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Truck size={18} className="text-red-500" />
+                            <Truck size={18} className="text-primary" />
                             <span>By Air: 7-14 Days</span>
                         </div>
                     </div>
@@ -342,7 +342,7 @@ const HeroSlider = ({ banners }) => {
                     {(banner.title || banner.subtitle) && (
                         <div className="absolute inset-0 bg-black/30 flex flex-col justify-center px-6 md:px-16 text-white text-left">
                             {banner.subtitle && (
-                                <span className="inline-block bg-red-600/90 text-white text-[10px] md:text-xs font-bold px-3 py-1 rounded-full w-fit mb-2 uppercase">
+                                <span className="inline-block bg-primary/90 text-white text-[10px] md:text-xs font-bold px-3 py-1 rounded-full w-fit mb-2 uppercase">
                                     {banner.subtitle}
                                 </span>
                             )}
@@ -368,7 +368,7 @@ const HeroSlider = ({ banners }) => {
                             onClick={() => setCurrentIndex(index)}
                             className={clsx(
                                 "w-2 h-2 rounded-full transition-all",
-                                index === currentIndex ? "bg-red-600 w-6" : "bg-white/50"
+                                index === currentIndex ? "bg-primary w-6" : "bg-white/50"
                             )}
                         />
                     ))}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { Star, Truck, ShieldCheck, RefreshCw, Minus, Plus, ShoppingCart } from 'lucide-react';
@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 
 const ProductDetails = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
     const { addToCart } = useCart();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -57,7 +58,7 @@ const ProductDetails = () => {
                                     <button
                                         key={idx}
                                         onClick={() => setSelectedImage(idx)}
-                                        className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 ${selectedImage === idx ? 'border-red-600' : 'border-transparent'} hover:border-red-300 transition`}
+                                        className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 ${selectedImage === idx ? 'border-primary' : 'border-transparent'} hover:border-primary/50 transition`}
                                     >
                                         <img src={img} alt="" className="w-full h-full object-cover" />
                                     </button>
@@ -68,7 +69,7 @@ const ProductDetails = () => {
                         {/* Product Info */}
                         <div className="p-6 md:p-8 bg-gray-50 md:bg-white flex flex-col">
                             <div className="mb-2">
-                                <span className="text-red-600 font-bold text-xs uppercase tracking-wider bg-red-50 px-2 py-1 rounded">
+                                <span className="text-primary font-bold text-xs uppercase tracking-wider bg-primary/10 px-2 py-1 rounded">
                                     {product.category?.name || 'Store Item'}
                                 </span>
                             </div>
@@ -85,7 +86,7 @@ const ProductDetails = () => {
                             </div>
 
                             <div className="flex items-baseline gap-4 mb-8">
-                                <span className="text-4xl font-bold text-red-600">৳{product.sale_price || product.base_price}</span>
+                                <span className="text-4xl font-bold text-primary">৳{product.sale_price || product.base_price}</span>
                                 {product.sale_price && (
                                     <span className="text-xl text-gray-400 line-through">৳{product.base_price}</span>
                                 )}
@@ -99,14 +100,14 @@ const ProductDetails = () => {
                                     <div className="flex items-center border border-gray-300 rounded-lg w-fit bg-white">
                                         <button
                                             onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                            className="p-3 text-gray-600 hover:text-red-600 transition"
+                                            className="p-3 text-gray-600 hover:text-primary transition"
                                         >
                                             <Minus size={18} />
                                         </button>
                                         <span className="w-12 text-center font-bold text-gray-800">{quantity}</span>
                                         <button
                                             onClick={() => setQuantity(quantity + 1)}
-                                            className="p-3 text-gray-600 hover:text-red-600 transition"
+                                            className="p-3 text-gray-600 hover:text-primary transition"
                                         >
                                             <Plus size={18} />
                                         </button>
@@ -117,11 +118,17 @@ const ProductDetails = () => {
                             <div className="flex gap-4 mt-auto">
                                 <button
                                     onClick={handleAddToCart}
-                                    className="flex-1 bg-white border-2 border-red-600 text-red-600 py-3.5 rounded-xl font-bold hover:bg-red-50 transition flex items-center justify-center gap-2"
+                                    className="flex-1 bg-white border-2 border-primary text-primary py-3.5 rounded-xl font-bold hover:bg-primary/5 transition flex items-center justify-center gap-2"
                                 >
                                     <ShoppingCart size={20} /> Add to Cart
                                 </button>
-                                <button className="flex-1 bg-red-600 text-white py-3.5 rounded-xl font-bold hover:bg-red-700 transition shadow-lg shadow-red-200">
+                                <button
+                                    onClick={() => {
+                                        addToCart(product, quantity);
+                                        navigate('/checkout');
+                                    }}
+                                    className="flex-1 bg-primary text-white py-3.5 rounded-xl font-bold hover:bg-primary/90 transition shadow-lg shadow-primary/30"
+                                >
                                     Buy Now
                                 </button>
                             </div>

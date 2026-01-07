@@ -3,6 +3,9 @@ import api from '../../services/api';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 
 const Products = () => {
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [categories, setCategories] = useState([]);
@@ -28,7 +31,7 @@ const Products = () => {
 
     const fetchCategories = async () => {
         try {
-            const { data } = await api.get('/admin/categories');
+            const { data } = await api.get('/admin/v1/categories');
             setCategories(data || []);
         } catch (e) { console.error(e); }
     };
@@ -36,7 +39,7 @@ const Products = () => {
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get('/admin/products', { params: { search } });
+            const { data } = await api.get('/admin/v1/products', { params: { search } });
             setProducts(data.data || []);
         } catch (error) {
             console.error(error);
@@ -56,9 +59,9 @@ const Products = () => {
             };
 
             if (editingProduct) {
-                await api.put(`/admin/products/${editingProduct.id}`, payload);
+                await api.put(`/admin/v1/products/${editingProduct.id}`, payload);
             } else {
-                await api.post('/admin/products', payload);
+                await api.post('/admin/v1/products', payload);
             }
             setShowModal(false);
             fetchProducts();
@@ -71,7 +74,7 @@ const Products = () => {
     const handleDelete = async (id) => {
         if (!window.confirm("Are you sure?")) return;
         try {
-            await api.delete(`/admin/products/${id}`);
+            await api.delete(`/admin/v1/products/${id}`);
             fetchProducts();
         } catch (error) {
             console.error("Failed to delete product", error);
@@ -233,9 +236,56 @@ const Products = () => {
                                         value={formData.sale_price} onChange={e => setFormData({ ...formData, sale_price: e.target.value })} />
                                 </div>
                                 <div className="col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                                    <input type="text" className="w-full border rounded-lg p-2" placeholder="https://..."
-                                        value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })} />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
+
+                                    {/* Image Preview */}
+                                    {formData.image_url && (
+                                        <div className="mb-3 p-2 border rounded-lg bg-gray-50">
+                                            <img src={formData.image_url} alt="Preview" className="w-full h-32 object-cover rounded" />
+                                        </div>
+                                    )}
+
+                                    {/* Upload Button */}
+                                    <div className="flex gap-2 mb-2">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            id="product-image-upload"
+                                            onChange={async (e) => {
+                                                const file = e.target.files[0];
+                                                if (!file) return;
+                                                const formDataUpload = new FormData();
+                                                formDataUpload.append('image', file);
+                                                formDataUpload.append('folder', 'products');
+                                                try {
+                                                    const { data } = await api.post('/admin/v1/upload', formDataUpload, {
+                                                        headers: { 'Content-Type': 'multipart/form-data' }
+                                                    });
+                                                    setFormData({ ...formData, image_url: data.url });
+                                                } catch (error) {
+                                                    console.error('Upload failed', error);
+                                                    alert('Upload failed');
+                                                }
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor="product-image-upload"
+                                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 cursor-pointer"
+                                        >
+                                            Upload Image
+                                        </label>
+                                        <span className="text-sm text-gray-500 self-center">or</span>
+                                    </div>
+
+                                    {/* URL Input */}
+                                    <input
+                                        type="text"
+                                        className="w-full border rounded-lg p-2"
+                                        placeholder="Or paste image URL..."
+                                        value={formData.image_url}
+                                        onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                                    />
                                 </div>
                             </div>
                             <div className="flex justify-end gap-2 pt-4">

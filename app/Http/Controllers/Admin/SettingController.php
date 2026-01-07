@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Setting;
+use App\Models\BusinessSetting;
 use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
     public function index()
     {
-        return response()->json(Setting::all());
+        return response()->json(BusinessSetting::all());
     }
 
     public function update(Request $request)
@@ -22,7 +22,7 @@ class SettingController extends Controller
         ]);
 
         foreach ($validated['settings'] as $settingData) {
-            Setting::updateOrCreate(
+            BusinessSetting::updateOrCreate(
                 ['key' => $settingData['key']],
                 ['value' => $settingData['value']]
             );

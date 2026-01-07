@@ -23,7 +23,7 @@ const Dashboard = () => {
     React.useEffect(() => {
         const fetchStats = async () => {
             try {
-                const response = await api.get('/admin/dashboard/stats');
+                const response = await api.get('/admin/v1/dashboard/stats');
                 setData(response.data);
             } catch (err) {
                 setError('Failed to load dashboard data');

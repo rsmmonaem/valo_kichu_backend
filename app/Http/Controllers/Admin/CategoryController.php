@@ -56,7 +56,7 @@ class CategoryController extends Controller
             'name' => 'sometimes|string|max:255',
             'parent_id' => 'nullable|exists:categories,id',
             'image' => 'nullable|string',
-            'is_active' => 'boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         if (isset($validated['name'])) {

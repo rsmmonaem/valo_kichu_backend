@@ -13,7 +13,7 @@ class DashboardController extends Controller
 {
     public function stats()
     {
-        $totalRevenue = Order::where('status', 'completed')->sum('total_amount');
+        $totalRevenue = Order::where('status', 'completed')->sum('total_price');
         $totalOrders = Order::count();
         $totalCustomers = User::where('role', 'customer')->count();
         $totalProducts = Product::count();

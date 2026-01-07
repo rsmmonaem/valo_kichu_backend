@@ -17,7 +17,13 @@ const Login = () => {
         const success = await login(email, password);
         setIsSubmitting(false);
         if (success) {
-            navigate('/admin/dashboard');
+            if (success.role === 'admin' || success.role === 'super_admin') {
+                navigate('/admin/dashboard');
+            } else {
+                navigate('/');
+            }
+        } else {
+            toast.error('Invalid email or password');
         }
     };
 

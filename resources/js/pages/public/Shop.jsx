@@ -58,7 +58,7 @@ const Shop = () => {
                                 <h3 className="font-semibold mb-3 text-sm">Categories</h3>
                                 <ul className="space-y-2 text-sm text-gray-600">
                                     <li>
-                                        <Link to="/products" className={`block hover:text-red-600 ${!categorySlug ? 'text-red-600 font-bold' : ''}`}>
+                                        <Link to="/products" className={`block hover:text-primary ${!categorySlug ? 'text-primary font-bold' : ''}`}>
                                             All Categories
                                         </Link>
                                     </li>
@@ -66,7 +66,7 @@ const Shop = () => {
                                         <li key={cat.id}>
                                             <Link
                                                 to={`/products?category=${cat.slug}`}
-                                                className={`block hover:text-red-600 ${categorySlug === cat.slug ? 'text-red-600 font-bold' : ''}`}
+                                                className={`block hover:text-primary ${categorySlug === cat.slug ? 'text-primary font-bold' : ''}`}
                                             >
                                                 {cat.name}
                                             </Link>
@@ -77,7 +77,7 @@ const Shop = () => {
 
                             <div className="mb-6">
                                 <h3 className="font-semibold mb-3 text-sm">Price Range</h3>
-                                <input type="range" min="0" max="10000" className="w-full accent-red-600" />
+                                <input type="range" min="0" max="10000" className="w-full accent-primary" />
                                 <div className="flex justify-between text-xs text-gray-500 mt-2">
                                     <span>৳0</span>
                                     <span>৳10,000+</span>
@@ -113,10 +113,10 @@ const Shop = () => {
                                             )}
                                         </div>
                                         <div className="p-4">
-                                            <h3 className="text-sm text-gray-700 font-medium line-clamp-2 h-10 mb-2 group-hover:text-red-600 transition">{product.name}</h3>
+                                            <h3 className="text-sm text-gray-700 font-medium line-clamp-2 h-10 mb-2 group-hover:text-primary transition">{product.name}</h3>
                                             <div className="flex items-end justify-between">
                                                 <div>
-                                                    <div className="text-lg font-bold text-red-600">৳{product.sale_price || product.base_price}</div>
+                                                    <div className="text-lg font-bold text-primary">৳{product.sale_price || product.base_price}</div>
                                                     {product.sale_price && <span className="text-xs text-gray-400 line-through">৳{product.base_price}</span>}
                                                 </div>
                                             </div>

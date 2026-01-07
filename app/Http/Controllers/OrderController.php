@@ -40,6 +40,7 @@ class OrderController extends Controller
             'contact_number' => 'required|string',
             'notes' => 'nullable|string',
             'payment_method' => 'required|string',
+            'name' => 'nullable|string', // Allow custom name
         ]);
 
         return DB::transaction(function () use ($validated, $request) {
@@ -48,6 +49,7 @@ class OrderController extends Controller
             $itemsData = [];
 
             foreach ($validated['items'] as $item) {
+                // ... (product/variation logic remains same)
                 $product = Product::findOrFail($item['product_id']);
                 $price = $product->sale_price ?? $product->base_price;
                 $variationSnapshot = null;
@@ -83,7 +85,7 @@ class OrderController extends Controller
                 'order_number' => 'ORD-' . strtoupper(Str::random(10)),
                 'subtotal' => $subtotal,
                 'shipping_cost' => $shippingCost,
-                'total_amount' => $total,
+                'total_price' => $total,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'payment_method' => $validated['payment_method'],
@@ -99,10 +101,14 @@ class OrderController extends Controller
 
             // Process Payment
             $paymentService = new \App\Services\PaymentService();
-            $paymentResult = $paymentService->processPayment($validated['payment_method'], [
-                'order_number' => $order->order_number,
-                'customer_email' => $user->email,
-            ], $total);
+            $paymentResult = $paymentService->createPayment(
+                $validated['payment_method'],
+                $total,
+                $validated['name'] ?? ($user->first_name . ' ' . $user->last_name), // Use custom name or fallback
+                $user->email,
+                $user->phone_number,
+                $user
+            );
 
             return response()->json([
                 'order' => $order->load('items'),
@@ -405,7 +411,6 @@ class OrderController extends Controller
         'user_id' => $user->id,
         'subtotal' => $totalPrice + $discountAmount, // Before coupon
         'discount' => $discountAmount,
-        'total_amount' => $totalPrice,
         'total_price' => $totalPrice,
         'status' => 'pending',
         'payment_method' => $request->payment_method,

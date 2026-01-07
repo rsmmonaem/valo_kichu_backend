@@ -16,8 +16,17 @@ const PublicLayout = () => {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const res = await api.get('/settings');
-                setSettings(res.data || {});
+                // Fetch from the correct config endpoint
+                const res = await api.get('/v1/config/app-config');
+
+                // The response is already an object, no need to convert array
+                const config = res.data;
+                setSettings(config);
+
+                // Apply dynamic colors if they exist
+                if (config.primary_color) {
+                    document.documentElement.style.setProperty('--primary-color', config.primary_color);
+                }
             } catch (error) {
                 console.error("Failed to fetch settings", error);
             }
@@ -54,9 +63,9 @@ const PublicLayout = () => {
                         <span>Currency: BDT (৳)</span>
                     </div>
                     <div className="flex gap-4">
-                        <Link to="/seller" className="hover:text-red-600">Become a Seller</Link>
-                        <Link to="/help" className="hover:text-red-600">Help Center</Link>
-                        <Link to="/app" className="hover:text-red-600">Download App</Link>
+                        <Link to="/seller" className="hover:text-primary">Become a Seller</Link>
+                        <Link to="/help" className="hover:text-primary">Help Center</Link>
+                        <Link to="/app" className="hover:text-primary">Download App</Link>
                     </div>
                 </div>
             </div>
@@ -68,49 +77,49 @@ const PublicLayout = () => {
                         {/* Logo */}
                         <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
                             {settings.site_logo ? (
-                                <img src={settings.site_logo} alt="Logo" className="h-10 w-auto group-hover:scale-105 transition-transform" />
+                                <img src={settings.site_logo.startsWith('http') ? settings.site_logo : `/storage/${settings.site_logo}`} alt="Logo" className="h-10 w-auto group-hover:scale-105 transition-transform" />
                             ) : (
                                 <>
-                                    <div className="bg-red-600 text-white p-2 rounded-lg font-bold text-xl group-hover:scale-105 transition-transform duration-200">
+                                    <div className="bg-primary text-white p-2 rounded-lg font-bold text-xl group-hover:scale-105 transition-transform duration-200">
                                         S
                                     </div>
-                                    <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-800">Safayat</span>
+                                    <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary">Safayat</span>
                                 </>
                             )}
                         </Link>
 
                         {/* Search Bar */}
-                        <div className="flex-1 max-w-2xl relative hidden md:block group focus-within:ring-2 focus-within:ring-red-100 rounded-full transition-all">
+                        <div className="flex-1 max-w-2xl relative hidden md:block group focus-within:ring-2 focus-within:ring-primary/20 rounded-full transition-all">
                             <input
                                 type="text"
                                 placeholder="Search products by keyword or image..."
-                                className="w-full pl-6 pr-14 py-2.5 border-2 border-red-600 rounded-full focus:outline-none text-sm placeholder-gray-400"
+                                className="w-full pl-6 pr-14 py-2.5 border-2 border-primary rounded-full focus:outline-none text-sm placeholder-gray-400"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
-                            <button className="absolute right-14 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600 transition-colors p-1">
+                            <button className="absolute right-14 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors p-1">
                                 <Camera size={20} />
                             </button>
-                            <button className="absolute right-1 top-1 bottom-1 bg-red-600 text-white px-6 rounded-full hover:bg-red-700 transition-colors flex items-center justify-center">
+                            <button className="absolute right-1 top-1 bottom-1 bg-primary text-white px-6 rounded-full hover:opacity-90 transition-colors flex items-center justify-center">
                                 <Search size={20} />
                             </button>
                         </div>
 
                         {/* Actions */}
                         <div className="flex items-center gap-6 flex-shrink-0">
-                            <Link to="/wishlist" className="relative text-gray-600 hover:text-red-600 transition-colors flex flex-col items-center gap-0.5 group">
+                            <Link to="/wishlist" className="relative text-gray-600 hover:text-primary transition-colors flex flex-col items-center gap-0.5 group">
                                 <div className="relative">
-                                    <Heart size={24} className="group-hover:fill-red-50 transition-colors" />
-                                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">0</span>
+                                    <Heart size={24} className="group-hover:fill-primary/10 transition-colors" />
+                                    <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">0</span>
                                 </div>
                                 <span className="text-[10px] font-medium">Wishlist</span>
                             </Link>
 
-                            <Link to="/cart" className="relative text-gray-600 hover:text-red-600 transition-colors flex flex-col items-center gap-0.5 group">
+                            <Link to="/cart" className="relative text-gray-600 hover:text-primary transition-colors flex flex-col items-center gap-0.5 group">
                                 <div className="relative">
-                                    <ShoppingCart size={24} className="group-hover:fill-red-50 transition-colors" />
+                                    <ShoppingCart size={24} className="group-hover:fill-primary/10 transition-colors" />
                                     {cartCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{cartCount}</span>
+                                        <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{cartCount}</span>
                                     )}
                                 </div>
                                 <span className="text-[10px] font-medium">Cart</span>
@@ -118,29 +127,29 @@ const PublicLayout = () => {
 
                             {user ? (
                                 <div className="relative group flex flex-col items-center gap-0.5 cursor-pointer">
-                                    <div className="w-8 h-8 bg-red-50 rounded-full flex items-center justify-center text-red-600 border border-red-100">
+                                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary border border-primary/20">
                                         <User size={18} />
                                     </div>
                                     <span className="text-[10px] font-medium text-gray-900 max-w-[60px] truncate">{user.name}</span>
 
                                     {/* Dropdown */}
-                                    <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 hidden group-hover:block animate-in fade-in slide-in-from-top-2">
+                                    <div className="absolute top-full right-0 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 hidden group-hover:block animate-in fade-in slide-in-from-top-1">
                                         <div className="px-4 py-2 border-b border-gray-50 mb-1">
                                             <p className="text-xs text-gray-500">Signed in as</p>
                                             <p className="text-sm font-bold text-gray-800 truncate">{user.email}</p>
                                         </div>
                                         {['super_admin', 'child_admin'].includes(user.role) && (
-                                            <Link to="/admin/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600">Admin Dashboard</Link>
+                                            <Link to="/admin/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary">Admin Dashboard</Link>
                                         )}
-                                        <Link to="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600">My Orders</Link>
-                                        <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600">Profile</Link>
+                                        <Link to="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary">My Orders</Link>
+                                        <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary">Profile</Link>
                                         <div className="border-t border-gray-50 mt-1 pt-1">
-                                            <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Sign Out</button>
+                                            <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-primary/10">Sign Out</button>
                                         </div>
                                     </div>
                                 </div>
                             ) : (
-                                <Link to="/login" className="flex flex-col items-center gap-0.5 text-gray-600 hover:text-red-600 transition-colors">
+                                <Link to="/login" className="flex flex-col items-center gap-0.5 text-gray-600 hover:text-primary transition-colors">
                                     <User size={24} />
                                     <span className="text-[10px] font-medium">Login</span>
                                 </Link>
@@ -161,7 +170,7 @@ const PublicLayout = () => {
                                 <Link
                                     key={cat.name}
                                     to={`/products?category=${cat.name.toLowerCase()}`}
-                                    className="hover:text-red-600 whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 px-2 py-1 hover:bg-red-50 rounded-md transition-colors"
+                                    className="hover:text-primary whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 px-2 py-1 hover:bg-primary/10 rounded-md transition-colors"
                                 >
                                     <span>{cat.icon}</span>
                                     <span>{cat.name}</span>
@@ -185,10 +194,10 @@ const PublicLayout = () => {
                         <div className="space-y-4">
                             <Link to="/" className="flex items-center gap-2">
                                 {settings.site_logo ? (
-                                    <img src={settings.site_logo} alt="Logo" className="h-8 w-auto" />
+                                    <img src={settings.site_logo.startsWith('http') ? settings.site_logo : `/storage/${settings.site_logo}`} alt="Logo" className="h-8 w-auto" />
                                 ) : (
                                     <>
-                                        <div className="bg-red-600 text-white p-1.5 rounded font-bold text-lg">S</div>
+                                        <div className="bg-primary text-white p-1.5 rounded font-bold text-lg">S</div>
                                         <span className="text-xl font-bold text-gray-800">Safayat</span>
                                     </>
                                 )}
@@ -198,11 +207,11 @@ const PublicLayout = () => {
                             </p>
                             <div className="space-y-2 pt-2">
                                 <div className="flex items-center gap-3 text-sm text-gray-600">
-                                    <Phone size={16} className="text-red-600" />
+                                    <Phone size={16} className="text-primary" />
                                     <span>+880 1700-811396</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-sm text-gray-600">
-                                    <span className="w-4 flex justify-center text-red-600">@</span>
+                                    <span className="w-4 flex justify-center text-primary">@</span>
                                     <span>support@safayat.com</span>
                                 </div>
                             </div>
@@ -212,11 +221,11 @@ const PublicLayout = () => {
                         <div>
                             <h4 className="font-bold text-gray-800 mb-6">Customer Service</h4>
                             <ul className="space-y-3 text-sm text-gray-500">
-                                <li><Link to="/help" className="hover:text-red-600 transition-colors">Help Center</Link></li>
-                                <li><Link to="/track" className="hover:text-red-600 transition-colors">Track Order</Link></li>
-                                <li><Link to="/returns" className="hover:text-red-600 transition-colors">Returns & Refunds</Link></li>
-                                <li><Link to="/shipping" className="hover:text-red-600 transition-colors">Shipping Info</Link></li>
-                                <li><Link to="/contact" className="hover:text-red-600 transition-colors">Contact Us</Link></li>
+                                <li><Link to="/help" className="hover:text-primary transition-colors">Help Center</Link></li>
+                                <li><Link to="/track" className="hover:text-primary transition-colors">Track Order</Link></li>
+                                <li><Link to="/returns" className="hover:text-primary transition-colors">Returns & Refunds</Link></li>
+                                <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping Info</Link></li>
+                                <li><Link to="/contact" className="hover:text-primary transition-colors">Contact Us</Link></li>
                             </ul>
                         </div>
 
@@ -224,11 +233,11 @@ const PublicLayout = () => {
                         <div>
                             <h4 className="font-bold text-gray-800 mb-6">Quick Links</h4>
                             <ul className="space-y-3 text-sm text-gray-500">
-                                <li><Link to="/about" className="hover:text-red-600 transition-colors">About Us</Link></li>
-                                <li><Link to="/careers" className="hover:text-red-600 transition-colors">Careers</Link></li>
-                                <li><Link to="/privacy" className="hover:text-red-600 transition-colors">Privacy Policy</Link></li>
-                                <li><Link to="/terms" className="hover:text-red-600 transition-colors">Terms & Conditions</Link></li>
-                                <li><Link to="/sitemap" className="hover:text-red-600 transition-colors">Sitemap</Link></li>
+                                <li><Link to="/about" className="hover:text-primary transition-colors">About Us</Link></li>
+                                <li><Link to="/careers" className="hover:text-primary transition-colors">Careers</Link></li>
+                                <li><Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+                                <li><Link to="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link></li>
+                                <li><Link to="/sitemap" className="hover:text-primary transition-colors">Sitemap</Link></li>
                             </ul>
                         </div>
 

@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: var(--primary-color, #2563eb);
+}
+
+:root {
+  --primary-color: #2563eb;
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;

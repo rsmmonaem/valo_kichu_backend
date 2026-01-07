@@ -10,12 +10,36 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUser = async () => {
         try {
-            const { data } = await api.get('/me');
+            const { data } = await api.get('/v1/auth/user');
             setUser(data);
+            return data;
         } catch (error) {
             setUser(null);
+            return null;
         } finally {
             setLoading(false);
+        }
+    };
+
+    const register = async (userData) => {
+        try {
+            await api.get('/sanctum/csrf-cookie', { baseURL: '/' });
+            const { data } = await api.post('/register', userData);
+
+            if (data.access_token) {
+                localStorage.setItem('token', data.access_token);
+                api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
+            }
+
+            await fetchUser();
+            toast.success('Registration successful!');
+            return true;
+        } catch (error) {
+            toast.error(error.response?.data?.error || error.response?.data?.message || 'Registration failed');
+            if (error.response?.data?.errors) {
+                Object.values(error.response.data.errors).flat().forEach(msg => toast.error(msg));
+            }
+            return false;
         }
     };
 
@@ -24,18 +48,16 @@ export const AuthProvider = ({ children }) => {
             await api.get('/sanctum/csrf-cookie', { baseURL: '/' }); // Initialize CSRF protection from root
             const { data } = await api.post('/login', { email, password });
 
-            // If using token based (Bearer), store it. 
-            // But Sanctum SPA mode uses cookies primarily for first-party.
-            // If API returns token, we can use it, but cookie is safer for web.
             if (data.access_token) {
                 localStorage.setItem('token', data.access_token);
                 api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
             }
 
-            await fetchUser();
+            const userData = await fetchUser();
             toast.success('Logged in successfully!');
-            return true;
+            return userData;
         } catch (error) {
+            console.error(error);
             toast.error(error.response?.data?.message || 'Login failed');
             return false;
         }
@@ -62,7 +84,7 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={{ user, login, register, logout, loading, isAuthenticated: !!user }}>
             {children}
         </AuthContext.Provider>
     );

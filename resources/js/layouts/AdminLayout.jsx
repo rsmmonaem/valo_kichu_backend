@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
-import { LayoutDashboard, Package, ShoppingCart, Settings, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Settings, LogOut, Menu, X, Tag, Image } from 'lucide-react';
 import clsx from 'clsx';
 
 const AdminLayout = () => {
@@ -19,7 +19,9 @@ const AdminLayout = () => {
         { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
         { name: 'Products', path: '/admin/products', icon: Package },
         { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },
+        { name: 'Brands', path: '/admin/brands', icon: Tag },
         { name: 'Categories', path: '/admin/categories', icon: Menu },
+        { name: 'Banners', path: '/admin/banners', icon: Image },
         { name: 'Appearance', path: '/admin/appearance', icon: Settings },
     ];
 

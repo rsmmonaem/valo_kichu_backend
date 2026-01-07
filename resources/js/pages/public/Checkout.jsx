@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthProvider';
+import { useConfig } from '../../context/ConfigContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
@@ -10,12 +11,20 @@ import clsx from 'clsx';
 const Checkout = () => {
     const { cart, cartTotal, clearCart } = useCart();
     const { user } = useAuth();
+    const { config } = useConfig();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
     const [checkoutData, setCheckoutData] = useState({
-        shipping_address: '',
-        contact_number: user?.phone || '',
+        name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
+        phone: user?.phone || '',
+        email: user?.email || '', // Ensure we have email for address saving
+        address_line1: '',
+        address_line2: '',
+        city: '',
+        district: '',
+        country: 'Bangladesh',
+        zip_code: '',
         payment_method: 'cod',
         notes: ''
     });
@@ -33,20 +42,51 @@ const Checkout = () => {
         e.preventDefault();
         setLoading(true);
 
-        const payload = {
-            items: cart.map(item => ({
-                product_id: item.id,
-                product_variation_id: item.variation?.id || null, // Handle variations if implemented later
-                quantity: item.quantity
-            })),
-            shipping_address: checkoutData.shipping_address,
-            contact_number: checkoutData.contact_number,
-            payment_method: checkoutData.payment_method,
-            notes: checkoutData.notes
-        };
-
         try {
-            const { data } = await api.post('/orders', payload);
+            // 1. Save Address to Address Book
+            // The API requires specific fields: title, name, phone, email, address_line1, city, district, country
+            const addressPayload = {
+                title: 'Shipping Address', // Default title
+                name: checkoutData.name,
+                phone: checkoutData.phone,
+                email: checkoutData.email || user?.email || 'guest@example.com', // Basic fallback
+                address_line1: checkoutData.address_line1,
+                address_line2: checkoutData.address_line2,
+                city: checkoutData.city,
+                district: checkoutData.district,
+                country: checkoutData.country,
+                postal_code: checkoutData.zip_code,
+            };
+
+            // Attempt to save address. If it fails due to validation, the catch block will handle it.
+            // We await this to ensure address is saved before order is placed.
+            try {
+                await api.post('/v1/auth/addresses', addressPayload);
+            } catch (addressError) {
+                console.warn("Address save failed, proceeding with order anyway if possible/required, or logging.", addressError);
+                // Optional: Decide if we block order placement if address save fails.
+                // For now, we proceed, but typically you might want to stop here:
+                // toast.error("Could not save address. Please check your details.");
+                // setLoading(false);
+                // return;
+            }
+
+            // 2. Place Order
+            const orderPayload = {
+                name: checkoutData.name,
+                items: cart.map(item => ({
+                    product_id: item.id,
+                    product_variation_id: item.variation?.id || null,
+                    quantity: item.quantity
+                })),
+                // Construct a full address string for the order record
+                shipping_address: `${checkoutData.address_line1}, ${checkoutData.address_line2 ? checkoutData.address_line2 + ', ' : ''}${checkoutData.city}, ${checkoutData.district}, ${checkoutData.country} - ${checkoutData.zip_code}`,
+                contact_number: checkoutData.phone,
+                payment_method: checkoutData.payment_method,
+                notes: checkoutData.notes
+            };
+
+            const { data } = await api.post('/orders', orderPayload);
 
             // Handle Payment Redirection
             if (data.payment_result?.payment_url) {
@@ -62,7 +102,8 @@ const Checkout = () => {
             navigate(`/order-success?order=${data.order.order_number}`);
         } catch (error) {
             console.error("Order placement failed", error);
-            toast.error(error.response?.data?.message || "Failed to place order");
+            const msg = error.response?.data?.message || (error.response?.data?.errors ? Object.values(error.response.data.errors).flat().join(', ') : "Failed to place order");
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -85,11 +126,13 @@ const Checkout = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                             <input
                                 type="text"
-                                value={user?.name || ''}
-                                disabled
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 cursor-not-allowed"
+                                name="name"
+                                value={checkoutData.name}
+                                onChange={handleChange}
+                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:border-red-500"
                             />
                         </div>
+
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
@@ -97,27 +140,92 @@ const Checkout = () => {
                                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                 <input
                                     type="text"
-                                    name="contact_number"
+                                    name="phone"
                                     required
                                     placeholder="Enter your phone number"
                                     className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
-                                    value={checkoutData.contact_number}
+                                    value={checkoutData.phone}
                                     onChange={handleChange}
                                 />
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Address</label>
-                            <textarea
-                                name="shipping_address"
-                                required
-                                rows="3"
-                                placeholder="Enter full delivery address"
-                                className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
-                                value={checkoutData.shipping_address}
-                                onChange={handleChange}
-                            ></textarea>
+                        {/* Structured Address Fields */}
+                        <div className="grid grid-cols-1 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+                                <input
+                                    type="text"
+                                    name="address_line1"
+                                    required
+                                    placeholder="Street, House No, etc."
+                                    className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
+                                    value={checkoutData.address_line1}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2 (Optional)</label>
+                                <input
+                                    type="text"
+                                    name="address_line2"
+                                    placeholder="Building, Floor, etc."
+                                    className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
+                                    value={checkoutData.address_line2}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                    <input
+                                        type="text"
+                                        name="city"
+                                        required
+                                        placeholder="City"
+                                        className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
+                                        value={checkoutData.city}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                                    <input
+                                        type="text"
+                                        name="district"
+                                        required
+                                        placeholder="District"
+                                        className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
+                                        value={checkoutData.district}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                                    <input
+                                        type="text"
+                                        name="zip_code"
+                                        placeholder="Zip Code"
+                                        className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
+                                        value={checkoutData.zip_code}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                    <input
+                                        type="text"
+                                        name="country"
+                                        required
+                                        placeholder="Country"
+                                        className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
+                                        value={checkoutData.country}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div>
@@ -181,37 +289,52 @@ const Checkout = () => {
                             </div>
 
                             <div className="space-y-3">
-                                <label className="flex items-center gap-3 p-4 border border-red-200 bg-red-50 rounded-lg cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="payment_method"
-                                        value="cod"
-                                        checked={checkoutData.payment_method === 'cod'}
-                                        onChange={handleChange}
-                                        className="text-red-600 focus:ring-red-500"
-                                    />
-                                    <div>
-                                        <span className="font-bold text-gray-800 block">Cash on Delivery</span>
-                                        <span className="text-xs text-gray-500">Pay when you receive your order</span>
+                                {config?.payment_methods?.map((method) => (
+                                    <label
+                                        key={method.key_name}
+                                        className={clsx(
+                                            "flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all",
+                                            checkoutData.payment_method === method.key_name
+                                                ? "border-red-200 bg-red-50"
+                                                : "border-gray-200 hover:bg-gray-50"
+                                        )}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="payment_method"
+                                            value={method.key_name}
+                                            checked={checkoutData.payment_method === method.key_name}
+                                            onChange={handleChange}
+                                            className="text-red-600 focus:ring-red-500"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-bold text-gray-800 block">
+                                                    {method.additional_datas?.gateway_title || method.key_name}
+                                                </span>
+                                                {method.additional_datas?.gateway_image && (
+                                                    <img
+                                                        src={method.additional_datas.gateway_image}
+                                                        alt={method.key_name}
+                                                        className="h-6 object-contain"
+                                                    />
+                                                )}
+                                            </div>
+                                            {method.type === 'cod' && (
+                                                <span className="text-xs text-gray-500">Pay when you receive your order</span>
+                                            )}
+                                            {method.type === 'online' && (
+                                                <span className="text-xs text-gray-500">Secure payment via {method.additional_datas?.gateway_title}</span>
+                                            )}
+                                        </div>
+                                    </label>
+                                ))}
+
+                                {(!config?.payment_methods || config.payment_methods.length === 0) && (
+                                    <div className="text-center p-4 text-gray-500">
+                                        No payment methods available.
                                     </div>
-                                </label>
-                                <label className={clsx(
-                                    "flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all",
-                                    checkoutData.payment_method === 'bkash' ? "border-red-200 bg-red-50" : "border-gray-200 hover:bg-gray-50"
-                                )}>
-                                    <input
-                                        type="radio"
-                                        name="payment_method"
-                                        value="bkash"
-                                        checked={checkoutData.payment_method === 'bkash'}
-                                        onChange={handleChange}
-                                        className="text-red-600 focus:ring-red-500"
-                                    />
-                                    <div>
-                                        <span className="font-bold text-gray-800 block">bKash Digital Payment</span>
-                                        <span className="text-xs text-gray-500">Secure payment via bKash gateway</span>
-                                    </div>
-                                </label>
+                                )}
                             </div>
 
                             <button
