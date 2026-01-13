@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
-import { LayoutDashboard, Package, ShoppingCart, Settings, LogOut, Menu, X, Tag, Image } from 'lucide-react';
+import { 
+    LayoutDashboard, Package, ShoppingCart, Settings, 
+    LogOut, Menu, X, Tag, Image, ChevronDown 
+} from 'lucide-react';
 import clsx from 'clsx';
 
 const AdminLayout = () => {
@@ -9,10 +12,20 @@ const AdminLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    
+    // Track which submenu is open (stores the item name)
+    const [openMenus, setOpenMenus] = useState({});
 
     const handleLogout = async () => {
         await logout();
         navigate('/login');
+    };
+
+    const toggleSubMenu = (name) => {
+        setOpenMenus(prev => ({
+            ...prev,
+            [name]: !prev[name]
+        }));
     };
 
     const navItems = [
@@ -20,7 +33,12 @@ const AdminLayout = () => {
         { name: 'Products', path: '/admin/products', icon: Package },
         { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },
         { name: 'Brands', path: '/admin/brands', icon: Tag },
-        { name: 'Categories', path: '/admin/categories', icon: Menu },
+        { 
+            name: 'Categories', 
+            path: '/admin/categories', 
+            icon: Menu, 
+            subCategories: ["Sub Categories", "Sub sub categories"] 
+        },
         { name: 'Banners', path: '/admin/banners', icon: Image },
         { name: 'Appearance', path: '/admin/appearance', icon: Settings },
     ];
@@ -39,22 +57,54 @@ const AdminLayout = () => {
                     </button>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-2">
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.path}
-                            to={item.path}
-                            className={clsx(
-                                "flex items-center gap-3 p-3 rounded-lg transition-colors",
-                                location.pathname.startsWith(item.path)
-                                    ? "bg-blue-600 text-white"
-                                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                            )}
-                        >
-                            <item.icon size={20} />
-                            <span className={clsx(!isSidebarOpen && "hidden")}>{item.name}</span>
-                        </Link>
-                    ))}
+                <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+                    {navItems.map((item) => {
+                        const hasSubItems = item.subCategories && item.subCategories.length > 0;
+                        const isOpen = openMenus[item.name];
+
+                        return (
+                            <div key={item.name}>
+                                {/* Main Item Link or Button */}
+                                <div
+                                    onClick={() => hasSubItems && toggleSubMenu(item.name)}
+                                    className={clsx(
+                                        "flex items-center justify-between p-3 rounded-lg transition-colors cursor-pointer",
+                                        location.pathname.startsWith(item.path)
+                                            ? "bg-blue-600 text-white"
+                                            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                                    )}
+                                >
+                                    <Link to={item.path} className="flex items-center gap-3 flex-1">
+                                        <item.icon size={20} />
+                                        <span className={clsx(!isSidebarOpen && "hidden")}>{item.name}</span>
+                                    </Link>
+
+                                    {/* Chevron Icon for Subcategories */}
+                                    {hasSubItems && isSidebarOpen && (
+                                        <ChevronDown 
+                                            size={16} 
+                                            className={clsx("transition-transform", isOpen && "rotate-180")} 
+                                        />
+                                    )}
+                                </div>
+
+                                {/* Subcategories List */}
+                                {hasSubItems && isOpen && isSidebarOpen && (
+                                    <div className="ml-9 mt-1 space-y-1">
+                                        {item.subCategories.map((sub) => (
+                                            <Link
+                                                key={sub}
+                                                to={`${item.path}/${sub.toLowerCase().replace(/\s+/g, '-')}`}
+                                                className="block p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded"
+                                            >
+                                                {sub}
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </nav>
 
                 <div className="p-4 border-t border-slate-700">
