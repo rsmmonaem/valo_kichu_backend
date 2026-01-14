@@ -23,8 +23,9 @@ class CategoryController extends Controller
             'parent_id' => 'nullable|exists:categories,id',
             'image' => 'nullable|string', // Assuming URL or path
             'is_active' => 'boolean',
+            'priority' => 'nullable|integer|min:1|max:10'
         ]);
-
+       
         $slug = Str::slug($validated['name']);
         // Ensure slug uniqueness logic if needed, but basic slug here:
         $count = Category::where('slug', 'LIKE', "{$slug}%")->count();
@@ -38,6 +39,7 @@ class CategoryController extends Controller
             'parent_id' => $validated['parent_id'] ?? null,
             'image' => $validated['image'] ?? null,
             'is_active' => $validated['is_active'] ?? true,
+            'priority' => $validated['priority'] ?? null,
         ]);
 
         return response()->json($category, 201);
@@ -57,6 +59,7 @@ class CategoryController extends Controller
             'parent_id' => 'nullable|exists:categories,id',
             'image' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
+            'priority' => 'nullable|integer|min:1|max:10'
         ]);
 
         if (isset($validated['name'])) {

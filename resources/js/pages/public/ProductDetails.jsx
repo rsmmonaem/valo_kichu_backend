@@ -58,7 +58,7 @@ const ProductDetails = () => {
                                     <button
                                         key={idx}
                                         onClick={() => setSelectedImage(idx)}
-                                        className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 ${selectedImage === idx ? 'border-primary' : 'border-transparent'} hover:border-primary/50 transition`}
+                                        className={`w-20 h-20 flex shrink-0 rounded-lg overflow-hidden border-2 ${selectedImage === idx ? 'border-primary' : 'border-transparent'} hover:border-primary/50 transition`}
                                     >
                                         <img src={img} alt="" className="w-full h-full object-cover" />
                                     </button>

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
 import { Plus, Edit, Trash2 } from "lucide-react";
+import { div } from "framer-motion/client";
 
-const Categories = () => {
+const CategoryTemplate = ({ pageTitle, buttonName }) => {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -11,7 +12,6 @@ const Categories = () => {
         name: "",
         image: "",
         is_active: true,
-        priority:0,
     });
 
     useEffect(() => {
@@ -20,8 +20,11 @@ const Categories = () => {
 
     const fetchCategories = async () => {
         setLoading(true);
+        console.log("hello");
         try {
             const { data } = await api.get("/admin/v1/categories");
+
+            console.log(data);
             setCategories(data || []);
         } catch (error) {
             console.error(error);
@@ -32,7 +35,6 @@ const Categories = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log(formData);
         try {
             if (editingCategory) {
                 await api.put(
@@ -44,7 +46,7 @@ const Categories = () => {
             }
             setShowModal(false);
             fetchCategories();
-            setFormData({ name: "", image: "", is_active: true,priority:0 });
+            setFormData({ name: "", image: "", is_active: true });
             setEditingCategory(null);
         } catch (error) {
             console.error("Failed to save category", error);
@@ -80,12 +82,14 @@ const Categories = () => {
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">Categories</h1>
+                <h1 className="text-2xl font-bold text-gray-800">
+                    {pageTitle}
+                </h1>
                 <button
                     onClick={openCreate}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
                 >
-                    <Plus size={20} /> Add Category
+                    <Plus size={20} /> {buttonName}
                 </button>
             </div>
 
@@ -170,22 +174,88 @@ const Categories = () => {
                                     required
                                 />
                             </div>
+                            {pageTitle === "Sub Category" ||
+                            pageTitle === "Sub Sub Category" ? (
+                                <div>
+                                    {pageTitle === "Sub Sub Category" ? (
+                                        <div>
+                                            <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Main Category
+                                            </label>
+                                            <select
+                                                name="main-category"
+                                                id="main-category"
+                                                className="w-full border rounded-lg p-2"
+                                            >
+                                                <option value="Set Priority">
+                                                    Select Main Category
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Sub Category
+                                            </label>
+                                            <select
+                                                name="main-category"
+                                                id="main-category"
+                                                className="w-full border rounded-lg p-2"
+                                            >
+                                                <option value="Set Priority">
+                                                    Select sub Category
+                                                </option>
+                                            </select>
+                                        </div>
+                                        </div>
+                                        
+                                    ) : (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Main Category
+                                            </label>
+                                            <select
+                                                name="main-category"
+                                                id="main-category"
+                                                className="w-full border rounded-lg p-2"
+                                            >
+                                                <option value="Set Priority">
+                                                    Select Main Category
+                                                </option>
+                                            </select>
+                                        </div>
+                                    )}
+                                    {/* <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Main Category
+                                        </label>
+                                        <select
+                                            name="main-category"
+                                            id="main-category"
+                                            className="w-full border rounded-lg p-2"
+                                        >
+                                            <option value="Set Priority">
+                                                Select Main Category
+                                            </option>
+                                        </select>
+                                    </div> */}
+                                </div>
+                            ) : (
+                                <div></div>
+                            )}
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Product Priority
+                                    Product Priority
                                 </label>
                                 <select
                                     name="product-priority"
                                     id="product-priority"
                                     className="w-full border rounded-lg p-2"
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            priority: e.target.value === "Set Priority" ? 0 : parseInt(e.target.value, 10)
-                                        })
-                                    }
                                 >
-                                    <option value="Set Priority">Set Priority</option>
+                                    <option value="Set Priority">
+                                        Set Priority
+                                    </option>
                                     <option value="1">1</option>
                                     <option value="2">2</option>
                                     <option value="3">3</option>
@@ -306,4 +376,4 @@ const Categories = () => {
     );
 };
 
-export default Categories;
+export default CategoryTemplate;

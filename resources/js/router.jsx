@@ -18,6 +18,8 @@ import AdminDashboard from './pages/admin/Dashboard';
 import Products from './pages/admin/Products';
 import Orders from './pages/admin/Orders';
 import Categories from './pages/admin/Categories';
+import SubCategories from './pages/admin/SubCategories';
+import SubsubCategories from './pages/admin/SubsubCategories';
 import Brands from './pages/admin/Brands';
 import Banners from './pages/admin/Banners';
 import Appearance from './pages/admin/Appearance';
@@ -91,6 +93,8 @@ const AppRouter = () => {
                                 <Route path="orders" element={<Orders />} />
                                 <Route path="brands" element={<Brands />} />
                                 <Route path="categories" element={<Categories />} />
+                                <Route path="categories/sub-categories" element={<SubCategories />} />
+                                <Route path="categories/sub-sub-categories" element={<SubsubCategories />} />
                                 <Route path="banners" element={<Banners />} />
                                 <Route path="appearance" element={<Appearance />} />
                             </Route>
