@@ -4,6 +4,8 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 
 const CategoryTemplate = ({ pageTitle, buttonName }) => {
     const [categories, setCategories] = useState([]);
+    const [subcategories, setSubcategories] = useState([]);
+    const [subsubcategories, setSubsubcategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
@@ -12,7 +14,7 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
         image: "",
         is_active: true,
         parent_id: null, // immediate parent
-        main_id: null,   // main category for sub-subcategory
+        main_id: null, // main category for sub-subcategory
         priority: null,
     });
 
@@ -25,8 +27,23 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
         setLoading(true);
         try {
             const { data } = await api.get("/admin/v1/categories");
-            console.log(data);
             setCategories(data || []);
+            if (pageTitle === "Sub Category") {
+                const subCategoriesData = data.flatMap(
+                    (item) => item.children || []
+                );
+                // setCategories(subCategoriesData);
+                setSubcategories(subCategoriesData);
+            }
+            if (pageTitle === "Sub Sub Category") {
+                const subSubCategories = data.flatMap(
+                    (main) =>
+                        main.children?.flatMap((sub) => sub.children || []) ||
+                        []
+                );
+                // setCategories(subSubCategories);
+                setSubsubcategories(subSubCategories);
+            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -37,6 +54,10 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
     // Get direct children of a category
     const getChildren = (parentId) => {
         const parent = categories.find((c) => c.id === parentId);
+        return parent?.children || [];
+    };
+    const getSubChildren = (parentId) => {
+        const parent = subcategories.find((c) => c.id === parentId);
         return parent?.children || [];
     };
 
@@ -57,11 +78,16 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
                 image: formData.image || null,
                 is_active: formData.is_active,
                 parent_id: formData.parent_id || null,
-                priority: formData.priority ? parseInt(formData.priority, 10) : null,
+                priority: formData.priority
+                    ? parseInt(formData.priority, 10)
+                    : null,
             };
 
             if (editingCategory) {
-                await api.put(`/admin/v1/categories/${editingCategory.id}`, payload);
+                await api.put(
+                    `/admin/v1/categories/${editingCategory.id}`,
+                    payload
+                );
             } else {
                 await api.post("/admin/v1/categories", payload);
             }
@@ -127,7 +153,9 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
         <div>
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">{pageTitle}</h1>
+                <h1 className="text-2xl font-bold text-gray-800">
+                    {pageTitle}
+                </h1>
                 <button
                     onClick={openCreate}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
@@ -136,89 +164,223 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
                 </button>
             </div>
 
-            {/* Category List */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <ul className="divide-y divide-gray-100">
-                    {loading ? (
-                        <li className="p-8 text-center text-gray-500">Loading...</li>
-                    ) : categories.length > 0 ? (
-                        categories.map((cat) => (
-                            <li key={cat.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center text-gray-400">
-                                        {cat.image ? <img src={cat.image} className="w-full h-full object-cover" /> : "Icon"}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-medium text-gray-800">{cat.name}</h3>
-                                        <p className="text-xs text-gray-500">slug: {cat.slug}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => openEdit(cat)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded">
-                                        <Edit size={18} />
-                                    </button>
-                                    <button onClick={() => handleDelete(cat.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
+            {/*sub Category List */}
+            {pageTitle === "Sub Category" && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <ul className="divide-y divide-gray-100">
+                        {loading ? (
+                            <li className="p-8 text-center text-gray-500">
+                                Loading...
                             </li>
-                        ))
-                    ) : (
-                        <li className="p-8 text-center text-gray-500">No categories found.</li>
-                    )}
-                </ul>
-            </div>
+                        ) : subcategories.length > 0 ? (
+                            subcategories.map((cat) => (
+                                <li
+                                    key={cat.id}
+                                    className="p-4 flex items-center justify-between hover:bg-gray-50"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center text-gray-400">
+                                            {cat.image ? (
+                                                <img
+                                                src={`${cat.image}`}
+                                                className="w-full h-full object-cover"
+                                              />        
+                                              
+                                            ) : (
+                                                "Icon"
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-gray-800">
+                                                {cat.name}
+                                            </h3>
+                                            <p className="text-xs text-gray-500">
+                                                slug: {cat.slug}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => openEdit(cat)}
+                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                        >
+                                            <Edit size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(cat.id)}
+                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                </li>
+                            ))
+                        ) : (
+                            <li className="p-8 text-center text-gray-500">
+                                No categories found.
+                            </li>
+                        )}
+                    </ul>
+                </div>
+            )}
+            {/* sub sub Category List */}
+            {pageTitle === "Sub Sub Category" && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <ul className="divide-y divide-gray-100">
+                        {loading ? (
+                            <li className="p-8 text-center text-gray-500">
+                                Loading...
+                            </li>
+                        ) : subsubcategories.length > 0 ? (
+                            subsubcategories.map((cat) => (
+                                <li
+                                    key={cat.id}
+                                    className="p-4 flex items-center justify-between hover:bg-gray-50"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center text-gray-400">
+                                            {cat.image ? (
+                                                <img
+                                                    src={cat.image}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                "Icon"
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-gray-800">
+                                                {cat.name}
+                                            </h3>
+                                            <p className="text-xs text-gray-500">
+                                                slug: {cat.slug}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => openEdit(cat)}
+                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                        >
+                                            <Edit size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(cat.id)}
+                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                </li>
+                            ))
+                        ) : (
+                            <li className="p-8 text-center text-gray-500">
+                                No categories found.
+                            </li>
+                        )}
+                    </ul>
+                </div>
+            )}
 
             {/* Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-xl p-6 w-full max-w-md">
-                        <h2 className="text-xl font-bold mb-4">{editingCategory ? "Edit Category" : "New Category"}</h2>
+                        <h2 className="text-xl font-bold mb-4">
+                            {editingCategory ? "Edit Category" : "New Category"}
+                        </h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             {/* Name */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Name
+                                </label>
                                 <input
                                     type="text"
                                     className="w-full border rounded-lg p-2"
                                     value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            name: e.target.value,
+                                        })
+                                    }
                                     required
                                 />
                             </div>
 
                             {/* Parent selection */}
-                            {(pageTitle === "Sub Category" || pageTitle === "Sub Sub Category") && (
+                            {(pageTitle === "Sub Category" ||
+                                pageTitle === "Sub Sub Category") && (
                                 <div>
                                     {pageTitle === "Sub Sub Category" && (
                                         <>
                                             {/* Main Category */}
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Main Category</label>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Main Category
+                                                </label>
                                                 <select
                                                     className="w-full border rounded-lg p-2"
-                                                    value={formData.main_id || ""}
-                                                    onChange={(e) => setFormData({ ...formData, main_id: parseInt(e.target.value), parent_id: null })}
+                                                    value={
+                                                        formData.main_id || ""
+                                                    }
+                                                    onChange={(e) =>
+                                                        setFormData({
+                                                            ...formData,
+                                                            main_id: parseInt(
+                                                                e.target.value
+                                                            ),
+                                                            parent_id: null,
+                                                        })
+                                                    }
                                                 >
-                                                    <option value="">Select Main Category</option>
+                                                    <option value="">
+                                                        Select Main Category
+                                                    </option>
                                                     {categories.map((cat) => (
-                                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                                        <option
+                                                            key={cat.id}
+                                                            value={cat.id}
+                                                        >
+                                                            {cat.name}
+                                                        </option>
                                                     ))}
                                                 </select>
                                             </div>
 
                                             {/* Sub Category */}
                                             <div className="mt-2">
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Sub Category</label>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Sub Category
+                                                </label>
                                                 <select
                                                     className="w-full border rounded-lg p-2"
-                                                    value={formData.parent_id || ""}
-                                                    onChange={(e) => setFormData({ ...formData, parent_id: parseInt(e.target.value) })}
+                                                    value={
+                                                        formData.parent_id || ""
+                                                    }
+                                                    onChange={(e) =>
+                                                        setFormData({
+                                                            ...formData,
+                                                            parent_id: parseInt(
+                                                                e.target.value
+                                                            ),
+                                                        })
+                                                    }
                                                     disabled={!formData.main_id}
                                                 >
-                                                    <option value="">Select Sub Category</option>
-                                                    {getChildren(formData.main_id).map((sub) => (
-                                                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                                    <option value="">
+                                                        Select Sub Category
+                                                    </option>
+                                                    {getChildren(
+                                                        formData.main_id
+                                                    ).map((sub) => (
+                                                        <option
+                                                            key={sub.id}
+                                                            value={sub.id}
+                                                        >
+                                                            {sub.name}
+                                                        </option>
                                                     ))}
                                                 </select>
                                             </div>
@@ -227,15 +389,31 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
 
                                     {pageTitle === "Sub Category" && (
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Main Category</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Main Category
+                                            </label>
                                             <select
                                                 className="w-full border rounded-lg p-2"
                                                 value={formData.parent_id || ""}
-                                                onChange={(e) => setFormData({ ...formData, parent_id: parseInt(e.target.value) })}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        parent_id: parseInt(
+                                                            e.target.value
+                                                        ),
+                                                    })
+                                                }
                                             >
-                                                <option value="">Select Main Category</option>
+                                                <option value="">
+                                                    Select Main Category
+                                                </option>
                                                 {categories.map((cat) => (
-                                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                                    <option
+                                                        key={cat.id}
+                                                        value={cat.id}
+                                                    >
+                                                        {cat.name}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </div>
@@ -245,26 +423,41 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
 
                             {/* Priority */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Product Priority</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Product Priority
+                                </label>
                                 <select
                                     className="w-full border rounded-lg p-2"
                                     value={formData.priority || ""}
-                                    onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            priority: parseInt(e.target.value),
+                                        })
+                                    }
                                 >
                                     <option value="">Set Priority</option>
                                     {[...Array(10)].map((_, i) => (
-                                        <option key={i + 1} value={i + 1}>{i + 1}</option>
+                                        <option key={i + 1} value={i + 1}>
+                                            {i + 1}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
 
                             {/* Image */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Category Image</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Category Image
+                                </label>
 
                                 {formData.image && (
                                     <div className="mb-3 p-2 border rounded-lg bg-gray-50">
-                                        <img src={formData.image} alt="Preview" className="w-full h-32 object-cover rounded" />
+                                        <img
+                                            src={formData.image}
+                                            alt="Preview"
+                                            className="w-full h-32 object-cover rounded"
+                                        />
                                     </div>
                                 )}
 
@@ -281,18 +474,38 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
                                             fd.append("image", file);
                                             fd.append("folder", "categories");
                                             try {
-                                                const { data } = await api.post("/admin/v1/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
-                                                setFormData({ ...formData, image: data.url });
+                                                const { data } = await api.post(
+                                                    "/admin/v1/upload",
+                                                    fd,
+                                                    {
+                                                        headers: {
+                                                            "Content-Type":
+                                                                "multipart/form-data",
+                                                        },
+                                                    }
+                                                );
+                                                setFormData({
+                                                    ...formData,
+                                                    image: `${import.meta.env.VITE_API_BASE_URL}/storage/${data.path}`,
+                                                });
                                             } catch (err) {
-                                                console.error("Upload failed", err);
+                                                console.error(
+                                                    "Upload failed",
+                                                    err
+                                                );
                                                 alert("Upload failed");
                                             }
                                         }}
                                     />
-                                    <label htmlFor="category-image-upload" className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 cursor-pointer">
+                                    <label
+                                        htmlFor="category-image-upload"
+                                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 cursor-pointer"
+                                    >
                                         Upload Image
                                     </label>
-                                    <span className="text-sm text-gray-500 self-center">or</span>
+                                    <span className="text-sm text-gray-500 self-center">
+                                        or
+                                    </span>
                                 </div>
 
                                 <input
@@ -300,14 +513,30 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
                                     className="w-full border rounded-lg p-2"
                                     placeholder="Or paste image URL..."
                                     value={formData.image}
-                                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            image: e.target.value,
+                                        })
+                                    }
                                 />
                             </div>
 
                             {/* Buttons */}
                             <div className="flex justify-end gap-2 mt-6">
-                                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Save
+                                </button>
                             </div>
                         </form>
                     </div>

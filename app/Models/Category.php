@@ -55,4 +55,5 @@ class Category extends Model
         
         return array_unique($categoryIds);
     }
+
 }

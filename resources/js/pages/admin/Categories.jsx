@@ -105,7 +105,7 @@ const Categories = () => {
                                     <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center text-gray-400">
                                         {cat.image ? (
                                             <img
-                                                src={cat.image}
+                                                src={cat.image?.startsWith('http') ? cat.image : `${cat.image}`}
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
@@ -207,7 +207,11 @@ const Categories = () => {
                                 {formData.image && (
                                     <div className="mb-3 p-2 border rounded-lg bg-gray-50">
                                         <img
-                                            src={formData.image}
+                                            src={
+                                                formData.image.startsWith("http")
+                                                  ? formData.image
+                                                  : `${import.meta.env.VITE_API_BASE_URL}/storage/${formData.image}`
+                                              }
                                             alt="Preview"
                                             className="w-full h-32 object-cover rounded"
                                         />
@@ -245,9 +249,10 @@ const Categories = () => {
                                                         },
                                                     }
                                                 );
+                                                console.log(data.path)
                                                 setFormData({
                                                     ...formData,
-                                                    image: data.url,
+                                                    image: `${import.meta.env.VITE_API_BASE_URL}/storage/${data.path}`,
                                                 });
                                             } catch (error) {
                                                 console.error(
@@ -278,7 +283,7 @@ const Categories = () => {
                                     onChange={(e) =>
                                         setFormData({
                                             ...formData,
-                                            image: e.target.value,
+                                            image:  e.target.value,
                                         })
                                     }
                                 />
