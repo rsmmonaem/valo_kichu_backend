@@ -384,7 +384,7 @@ class AuthController extends Controller
     public function createAddress(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'title' => 'required|string|max:255',
+            'title' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:255',
             'email' => 'required|email',

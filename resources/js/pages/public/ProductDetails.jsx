@@ -95,7 +95,7 @@ const ProductDetails = () => {
                             <div className="mb-8 border-t border-b border-gray-100 py-6 space-y-4">
                                 <p className="text-gray-600 leading-relaxed">{product.description}</p>
 
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-2 mt-1">
                                     <span className="font-bold text-gray-800 text-sm">Quantity:</span>
                                     <div className="flex items-center border border-gray-300 rounded-lg w-fit bg-white">
                                         <button
