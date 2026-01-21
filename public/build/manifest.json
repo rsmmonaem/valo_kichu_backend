@@ -1,6 +1,10 @@
 {
+  "public/coin.png": {
+    "file": "assets/coin-B-wg0_4L.png",
+    "src": "public/coin.png"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-BhbM_5ga.css",
+    "file": "assets/app-5beeqHX1.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -9,9 +13,12 @@
     ]
   },
   "resources/js/app.jsx": {
-    "file": "assets/app-BWE5mMzp.js",
+    "file": "assets/app-Ca_LwfoZ.js",
     "name": "app",
     "src": "resources/js/app.jsx",
-    "isEntry": true
+    "isEntry": true,
+    "assets": [
+      "assets/coin-B-wg0_4L.png"
+    ]
   }
 }

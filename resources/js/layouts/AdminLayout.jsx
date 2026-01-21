@@ -43,7 +43,7 @@ const AdminLayout = () => {
         );
         if (active) {
             setActiveMenu(active.name);
-            if (active.subCategories) {
+            if (active.subItems) {
                 setOpenMenus((prev) => ({
                     ...prev,
                     [active.name]: true,
@@ -54,14 +54,23 @@ const AdminLayout = () => {
 
     const navItems = [
         { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-        { name: "Products", path: "/admin/products", icon: Package },
+        {
+            name: "Products Manage",
+            path: "/admin/products",
+            icon: Package,
+            subItems: [
+                "Product List",
+                "Add new Product",
+                "Bulk import",
+            ],
+        },
         { name: "Orders", path: "/admin/orders", icon: ShoppingCart },
         { name: "Brands", path: "/admin/brands", icon: Tag },
         {
             name: "Categories",
             path: "/admin/categories",
             icon: Menu,
-            subCategories: [
+            subItems: [
                 "Categories",
                 "Sub Categories",
                 "Sub sub categories",
@@ -100,7 +109,7 @@ const AdminLayout = () => {
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                     {navItems.map((item) => {
                         const hasSubItems =
-                            item.subCategories && item.subCategories.length > 0;
+                            item.subItems && item.subItems.length > 0;
                         const isOpen = openMenus[item.name];
 
                         const isActive =
@@ -168,7 +177,7 @@ const AdminLayout = () => {
                                 {/* Subcategories */}
                                 {hasSubItems && isOpen && isSidebarOpen && (
                                     <div className="ml-9 mt-1 space-y-1">
-                                        {item.subCategories.map((sub, index) =>
+                                        {item.subItems.map((sub, index) =>
                                             index === 0 ? (
                                                 <Link
                                                     key={sub}

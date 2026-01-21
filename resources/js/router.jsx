@@ -28,6 +28,7 @@ import Appearance from './pages/admin/Appearance';
 import Profile from './pages/customer/Profile';
 import CustomerOrders from './pages/customer/Orders';
 import Wishlist from './pages/customer/Wishlist';
+import ProductList from './pages/admin/ProductList';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, roles = [] }) => {
@@ -89,7 +90,8 @@ const AppRouter = () => {
                             }>
                                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
                                 <Route path="dashboard" element={<AdminDashboard />} />
-                                <Route path="products" element={<Products />} />
+                                <Route path="products" element={<ProductList />} />
+                                <Route path="products/add-new-product" element={<Products />} />
                                 <Route path="orders" element={<Orders />} />
                                 <Route path="brands" element={<Brands />} />
                                 <Route path="categories" element={<Categories />} />
