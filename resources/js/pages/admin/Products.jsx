@@ -66,6 +66,7 @@ const AddNewProduct = () => {
         product_sku: "",
         unit: "kg",
         image: "",
+        gallery_images:[],
         description: "",
     });
 
@@ -269,7 +270,7 @@ useEffect(() => {
             prev.map((attr) => {
                 if (attr.id !== attributeId) return attr;
 
-                // ❌ Prevent duplicate value
+                //Prevent duplicate value
                 if (attr.value.includes(newValue)) {
                     return attr;
                 }
@@ -405,6 +406,7 @@ useEffect(() => {
     /* ================= COLOR IMAGE UPLOAD ================= */
     const handleColorImageUpload = async (colorId, file) => {
         if (!file) return;
+        // console.log("upload")
 
         const fd = new FormData();
         fd.append("image", file);
@@ -544,6 +546,7 @@ useEffect(() => {
                 
                 // Image
                 image: formData.image,
+                gallery_images: formData.galleryImages || [],
                 
                 // Tags
                 tags: searchTags,
@@ -1812,7 +1815,110 @@ useEffect(() => {
                             </div>
                         </div>
                     </div>
+{/* Image Gallery Section */}
+<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <h2 className="text-lg font-semibold text-gray-700 mb-6">
+        Image Gallery
+    </h2>
 
+    <div className="space-y-6">
+        {/* Uploaded Images Preview */}
+        {formData.galleryImages && formData.galleryImages.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {formData.galleryImages.map((image, index) => (
+                    <div key={index} className="relative group">
+                        <img
+                            src={image}
+                            alt={`Gallery Image ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border border-gray-300"
+                        />
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    galleryImages: prev.galleryImages.filter(
+                                        (_, i) => i !== index
+                                    ),
+                                }))
+                            }
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                        </button>
+                    </div>
+                ))}
+            </div>
+        )}
+
+        {/* File Upload */}
+        <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-600">
+                Upload Images
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                        const files = Array.from(e.target.files);
+                        const fileURLs = files.map((file) =>
+                            URL.createObjectURL(file)
+                        );
+                        setFormData((prev) => ({
+                            ...prev,
+                            galleryImages: [
+                                ...(prev.galleryImages || []),
+                                ...fileURLs,
+                            ],
+                        }));
+                    }}
+                    className="hidden"
+                    id="gallery-upload"
+                />
+                <label
+                    htmlFor="gallery-upload"
+                    className="cursor-pointer"
+                >
+                    <div className="flex flex-col items-center">
+                        <svg
+                            className="w-12 h-12 text-gray-400 mb-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                        </svg>
+                        <span className="text-gray-600 font-medium">
+                            Click to upload or drag and drop
+                        </span>
+                        <span className="text-gray-500 text-sm mt-1">
+                            SVG, PNG, JPG or GIF (max. 5MB each)
+                        </span>
+                    </div>
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
                     {/* Color-wise Image Upload Section */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <h2 className="text-lg font-semibold text-gray-700 mb-6">

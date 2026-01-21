@@ -14,7 +14,7 @@ class Product extends Model
         'product_sku', 'product_type', 'unit', 'base_price', 'sale_price',
         'unit_price', 'purchase_price', 'stock_quantity', 'min_order_qty', 'current_stock',
         'discount_type', 'discount_amount', 'tax_amount', 'tax_calculation',
-        'shipping_cost', 'shipping_multiply', 'loyalty_point','image',
+        'shipping_cost', 'shipping_multiply', 'loyalty_point','image','gallery_images',
         'variations', 'attributes', 'colors', 'tags',
         'status', 'is_featured', 'is_trending', 'is_discounted'
     ];
@@ -30,6 +30,7 @@ class Product extends Model
         'shipping_cost' => 'decimal:2',
         'loyalty_point' => 'decimal:2',
         'image' => 'string',
+        'gallery_images' =>'array',
         'variations' => 'array',
         'attributes' => 'array',
         'colors' => 'array',

@@ -60,6 +60,7 @@ class ProductController extends Controller
             'loyalty_point' => 'nullable|numeric|min:0',
             // Image
             'image' => 'nullable|string',
+            'gallery_images' => 'nullable|array',
 
             // JSON fields
             'variations' => 'nullable|array',
@@ -113,6 +114,7 @@ class ProductController extends Controller
                 'loyalty_point' => $validated['loyalty_point'] ?? 0,
                 // Image
                 'image' => $validated['image'] ?? null,
+                'gallery_images' =>$validated['gallery_images'] ?? [],
 
                 // JSON
                 'variations' => $request->variations ?? [],

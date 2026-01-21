@@ -12,14 +12,26 @@ import {
 } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import points from "../../../../public/coin.png";
+import { pre } from "framer-motion/client";
 
 export default function ProductModal({ product, onClose }) {
-    console.log(product)
+    console.log(product);
     const [quantity, setQuantity] = useState(1);
     const { addToCart } = useCart();
     const navigate = useNavigate();
 
     if (!product) return null;
+    const [galleryId, setGalleryId] = useState(1);
+    const [preview, setPreview] = useState("");
+    // const galleryImages = product.gallery_images.map((image, index) => ({
+    //     id: index + 1,
+    //     img: image,
+    // }));
+    const galleryImages = product?.gallery_images?.map((image, index) => ({
+        id: index + 1,
+        img: image,
+      })) ?? [];
+    //   console.log(galleryImages);
 
     /* ---------------- DATA ---------------- */
     const colorData = [
@@ -85,9 +97,34 @@ export default function ProductModal({ product, onClose }) {
                         {/* LEFT */}
                         <div>
                             {/* Image */}
+                            {/* {product.image === null || preview === "" ? (
+                                <div className="relative rounded-2xl overflow-hidden bg-gray-100 group">
+                                    <img
+                                        src={
+                                            preview === ""
+                                                ? product.image
+                                                : preview
+                                        }
+                                        alt={product.name}
+                                        className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                    <span className="absolute top-4 left-4 px-4 py-1 text-sm font-semibold text-white rounded-full bg-[#FFAC1C] shadow-lg">
+                                        Best Seller
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className="relative rounded-2xl overflow-hidden bg-gray-100 group">
+                                    <p>No Image</p>
+                                    <span className="absolute top-4 left-4 px-4 py-1 text-sm font-semibold text-white rounded-full bg-[#FFAC1C] shadow-lg">
+                                        Best Seller
+                                    </span>
+                                </div>
+                            )} */}
                             <div className="relative rounded-2xl overflow-hidden bg-gray-100 group">
                                 <img
-                                    src={product.image}
+                                    src={
+                                        preview === "" ? product.image : preview
+                                    }
                                     alt={product.name}
                                     className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-110"
                                 />
@@ -98,19 +135,22 @@ export default function ProductModal({ product, onClose }) {
 
                             {/* Thumbnails */}
                             <div className="flex gap-3 mt-4">
-                                {colorData.map((c) => (
+                                {galleryImages.map((g) => (
                                     <button
-                                        key={c.id}
-                                        onClick={() => setColor(c)}
+                                        key={g.id}
+                                        onClick={() => {
+                                            setGalleryId(g.id);
+                                            setPreview(g.img);
+                                        }}
                                         className={`h-16 w-16 rounded-xl overflow-hidden border-2 transition
                                             ${
-                                                c.id === color.id
+                                                g.id === galleryId
                                                     ? "border-[#FFAC1C] ring-2 ring-[#FFAC1C]/40"
                                                     : "border-gray-200 hover:border-[#FFAC1C]"
                                             }`}
                                     >
                                         <img
-                                            src={c.img}
+                                            src={g.img}
                                             className="w-full h-full object-cover"
                                         />
                                     </button>
@@ -123,12 +163,14 @@ export default function ProductModal({ product, onClose }) {
                                     Key Features
                                 </h3>
                                 <ul className="space-y-3">
-                                    {(product.key_features || [
-                                        "High quality materials",
-                                        "Long-lasting durability",
-                                        "Easy to maintain",
-                                        "Modern stylish design",
-                                    ]).map((f, i) => (
+                                    {(
+                                        product.key_features || [
+                                            "High quality materials",
+                                            "Long-lasting durability",
+                                            "Easy to maintain",
+                                            "Modern stylish design",
+                                        ]
+                                    ).map((f, i) => (
                                         <li
                                             key={i}
                                             className="flex items-start gap-3 text-gray-700"
