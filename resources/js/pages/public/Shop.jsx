@@ -39,6 +39,7 @@ const Shop = () => {
       if (searchQuery) params.search = searchQuery;
 
       const { data } = await api.get("/products", { params });
+     
       setProducts(data.data || []);
     } catch (error) {
       console.error("Failed to fetch products", error);

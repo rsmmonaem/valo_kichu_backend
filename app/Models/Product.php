@@ -10,30 +10,34 @@ use App\Models\User;
 class Product extends Model
 {
     protected $fillable = [
-        'name',
-        'slug',
-        'description',
-        'category_id',
-        'source_type',
-        'supplier_id',
-        'created_by_admin_id',
-        'base_price',
-        'sale_price',
-        'stock_quantity',
-        'unit',
-        'weight_kg',
-        'is_active',
-        'is_featured',
-        'is_deal_of_day',
+        'name', 'slug', 'description', 'category_id', 'brand',
+        'product_sku', 'product_type', 'unit', 'base_price', 'sale_price',
+        'unit_price', 'purchase_price', 'stock_quantity', 'min_order_qty', 'current_stock',
+        'discount_type', 'discount_amount', 'tax_amount', 'tax_calculation',
+        'shipping_cost', 'shipping_multiply', 'loyalty_point','image',
+        'variations', 'attributes', 'colors', 'tags',
+        'status', 'is_featured', 'is_trending', 'is_discounted'
     ];
+
 
     protected $casts = [
         'base_price' => 'decimal:2',
         'sale_price' => 'decimal:2',
-        'weight_kg' => 'decimal:3',
+        'unit_price' => 'decimal:2',
+        'purchase_price' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'tax_amount' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
+        'loyalty_point' => 'decimal:2',
+        'image' => 'string',
+        'variations' => 'array',
+        'attributes' => 'array',
+        'colors' => 'array',
+        'tags' => 'array',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
-        'is_deal_of_day' => 'boolean',
+        'is_trending' => 'boolean',
+        'is_discounted' => 'boolean',
     ];
 
     protected $appends = [

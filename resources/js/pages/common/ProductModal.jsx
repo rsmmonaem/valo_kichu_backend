@@ -14,6 +14,7 @@ import { useCart } from "../../context/CartContext";
 import points from "../../../../public/coin.png";
 
 export default function ProductModal({ product, onClose }) {
+    console.log(product)
     const [quantity, setQuantity] = useState(1);
     const { addToCart } = useCart();
     const navigate = useNavigate();
@@ -86,7 +87,7 @@ export default function ProductModal({ product, onClose }) {
                             {/* Image */}
                             <div className="relative rounded-2xl overflow-hidden bg-gray-100 group">
                                 <img
-                                    src={color.img}
+                                    src={product.image}
                                     alt={product.name}
                                     className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-110"
                                 />

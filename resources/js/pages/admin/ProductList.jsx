@@ -19,6 +19,7 @@ const ProductList = () => {
             const { data } = await api.get("/admin/v1/products", {
                 params: { search }
             });
+            console.log(data)
             setProducts(data.data || []);
         } catch (e) {
             console.error(e);

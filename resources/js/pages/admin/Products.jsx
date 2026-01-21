@@ -434,9 +434,64 @@ useEffect(() => {
     };
 
     /* ================= SUBMIT ================= */
+    // const handleSubmit = async (e) => {
+    //     e.preventDefault();
+
+    //     // Calculate final price based on tax and discount
+    //     let finalPrice = parseFloat(formData.price) || 0;
+    //     if (formData.discount_type === "Flat") {
+    //         finalPrice -= parseFloat(formData.discount_amount) || 0;
+    //     } else if (formData.discount_type === "Percent") {
+    //         finalPrice -=
+    //             (finalPrice * (parseFloat(formData.discount_amount) || 0)) /
+    //             100;
+    //     }
+
+    //     try {
+    //         const productData = {
+    //             name: formData.name,
+    //             price: finalPrice,
+    //             purchase_price: parseFloat(formData.purchase_price) || 0,
+    //             unit_price: parseFloat(formData.unit_price) || 0,
+    //             min_order_qty: parseInt(formData.min_order_qty) || 1,
+    //             current_stock: parseInt(formData.current_stock) || 0,
+    //             discount_type: formData.discount_type,
+    //             discount_amount: parseFloat(formData.discount_amount) || 0,
+    //             tax_amount: parseFloat(formData.tax_amount) || 0,
+    //             tax_calculation: formData.tax_calculation,
+    //             shipping_cost: parseFloat(formData.shipping_cost) || 0,
+    //             shipping_multiply: shippingMultiply,
+    //             loyalty_point: parseFloat(formData.loyalty_point) || 0,
+    //             category_id:
+    //                 formData.sub_sub_category_id ||
+    //                 formData.sub_category_id ||
+    //                 formData.category_id,
+    //             brand: formData.brand,
+    //             product_type: formData.product_type,
+    //             product_sku: formData.product_sku,
+    //             unit: formData.unit,
+    //             tags: searchTags,
+    //             image: formData.image,
+    //             description: formData.description,
+    //             variations: variations,
+    //         };
+
+    //         console.log("Submitting product data:", productData);
+
+    //         await api.post("/admin/v1/products", productData);
+
+    //         alert("Product added successfully");
+
+    //         // Reset form
+    //         resetForm();
+    //     } catch (err) {
+    //         console.error("Product create failed", err);
+    //         alert("Failed to add product");
+    //     }
+    // };
     const handleSubmit = async (e) => {
         e.preventDefault();
-
+    
         // Calculate final price based on tax and discount
         let finalPrice = parseFloat(formData.price) || 0;
         if (formData.discount_type === "Flat") {
@@ -446,50 +501,114 @@ useEffect(() => {
                 (finalPrice * (parseFloat(formData.discount_amount) || 0)) /
                 100;
         }
-
+    
         try {
+            // Build the complete payload
             const productData = {
+                // Basic Information
                 name: formData.name,
-                price: finalPrice,
-                purchase_price: parseFloat(formData.purchase_price) || 0,
-                unit_price: parseFloat(formData.unit_price) || 0,
-                min_order_qty: parseInt(formData.min_order_qty) || 1,
-                current_stock: parseInt(formData.current_stock) || 0,
-                discount_type: formData.discount_type,
-                discount_amount: parseFloat(formData.discount_amount) || 0,
-                tax_amount: parseFloat(formData.tax_amount) || 0,
-                tax_calculation: formData.tax_calculation,
-                shipping_cost: parseFloat(formData.shipping_cost) || 0,
-                shipping_multiply: shippingMultiply,
-                loyalty_point: parseFloat(formData.loyalty_point) || 0,
-                category_id:
-                    formData.sub_sub_category_id ||
-                    formData.sub_category_id ||
-                    formData.category_id,
+                description: formData.description,
+                
+                // Category Information
+                category_id: formData.sub_sub_category_id || formData.sub_category_id || formData.category_id,
                 brand: formData.brand,
+                
+                // Product Details
                 product_type: formData.product_type,
                 product_sku: formData.product_sku,
                 unit: formData.unit,
-                tags: searchTags,
+                
+                // Pricing Information
+                price: finalPrice,
+                purchase_price: parseFloat(formData.purchase_price) || 0,
+                unit_price: parseFloat(formData.unit_price) || 0,
+                
+                // Stock Information
+                min_order_qty: parseInt(formData.min_order_qty) || 1,
+                current_stock: parseInt(formData.current_stock) || 0,
+                
+                // Discount Information
+                discount_type: formData.discount_type,
+                discount_amount: parseFloat(formData.discount_amount) || 0,
+                
+                // Tax Information
+                tax_amount: parseFloat(formData.tax_amount) || 0,
+                tax_calculation: formData.tax_calculation,
+                
+                // Shipping Information
+                shipping_cost: parseFloat(formData.shipping_cost) || 0,
+                shipping_multiply: shippingMultiply,
+                
+                // Loyalty Points
+                loyalty_point: parseFloat(formData.loyalty_point) || 0,
+                
+                // Image
                 image: formData.image,
-                description: formData.description,
-                variations: variations,
+                
+                // Tags
+                tags: searchTags,
+                
+                // Variations
+                variations: variations.map(variation => ({
+                    id: variation.id,
+                    color: variation.color,
+                    colorClass: variation.colorClass,
+                    code: variation.code,
+                    sku: variation.sku,
+                    stock: variation.stock,
+                    // Include color image if available
+                    color_image: selectedColors.find(c => c.name === variation.color)?.image || null
+                })),
+                
+                // Attributes
+                attributes: selectedAttributes.map(attr => ({
+                    id: attr.id,
+                    name: attr.name,
+                    values: attr.value || []
+                })),
+                
+                // Color Information
+                colors: selectedColors.map(color => ({
+                    id: color.id,
+                    name: color.name,
+                    color_class: color.color,
+                    image: color.image || null
+                })),
+                
+                // Additional metadata
+
+                
+                // Status (you might want to add this)
+                status: "active", // or "draft", "pending", etc.
+                
+                // SEO Fields (optional - you can add these later)
+                // meta_title: "",
+                // meta_description: "",
+                // meta_keywords: "",
+                
+                // Additional options
+                is_featured: false,
+                is_trending: false,
+                is_discounted: formData.discount_type !== "None"
             };
-
+    
             console.log("Submitting product data:", productData);
-
+            // console.log("Full payload:", JSON.stringify(productData, null, 2));
+    
+            // Send to API
             await api.post("/admin/v1/products", productData);
-
+            console.log(productData);
+    
             alert("Product added successfully");
-
+    
             // Reset form
             resetForm();
         } catch (err) {
             console.error("Product create failed", err);
-            alert("Failed to add product");
+            console.error("Error details:", err.response?.data);
+            alert("Failed to add product: " + (err.response?.data?.message || err.message));
         }
     };
-
     const resetForm = () => {
         setFormData({
             name: "",
@@ -590,7 +709,7 @@ useEffect(() => {
                                 />
                             </div>
 
-                            {/* Price
+                            {/* Price */}
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-gray-600">
                                     Selling Price (৳) *
@@ -611,7 +730,7 @@ useEffect(() => {
                                         <span className="text-gray-500">৳</span>
                                     </div>
                                 </div>
-                            </div> */}
+                            </div>
 
                             {/* Description */}
                             <div className="space-y-2">

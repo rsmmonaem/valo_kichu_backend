@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-
 use App\Models\Product;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -13,57 +12,152 @@ class ProductController extends Controller
 {
     public function index()
     {
-        $products = Product::with(['category', 'variations'])->latest()->paginate(20);
+        $products = Product::with(['category', 'creator'])
+            ->latest()
+            ->paginate(20);
+
         return response()->json($products);
     }
 
     public function store(Request $request)
     {
-        // Simple validation for API/Admin products
         $validated = $request->validate([
-            'name' => 'required|string',
-            'category_id' => 'nullable|exists:categories,id',
-            'source_type' => 'in:api,admin',
-            'base_price' => 'numeric',
-            'variations' => 'array',
+            // Basic Info
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+
+            // Category / Brand
+            'category_id' => 'required|exists:categories,id',
+            'brand' => 'nullable|string',
+
+            // Product Info
+            'product_type' => 'nullable|string',
+            'product_sku' => 'nullable|string|unique:products,product_sku',
+            'unit' => 'nullable|string',
+
+            // Pricing
+            'price' => 'required|numeric|min:0',
+            'purchase_price' => 'nullable|numeric|min:0',
+            'unit_price' => 'nullable|numeric|min:0',
+
+            // Stock
+            'min_order_qty' => 'nullable|integer|min:1',
+            'current_stock' => 'nullable|integer|min:0',
+
+            // Discount
+            'discount_type' => 'nullable|in:None,Flat,Percentage',
+            'discount_amount' => 'nullable|numeric|min:0',
+
+            // Tax
+            'tax_amount' => 'nullable|numeric|min:0',
+            'tax_calculation' => 'nullable|string',
+
+            // Shipping
+            'shipping_cost' => 'nullable|numeric|min:0',
+            'shipping_multiply' => 'nullable|boolean',
+
+            // Loyalty
+            'loyalty_point' => 'nullable|numeric|min:0',
+            // Image
+            'image' => 'nullable|string',
+
+            // JSON fields
+            'variations' => 'nullable|array',
+            'attributes' => 'nullable|array',
+            'colors' => 'nullable|array',
+            'tags' => 'nullable|array',
+
+            // Status
+            'status' => 'nullable|string',
+            'is_featured' => 'boolean',
+            'is_trending' => 'boolean',
+            'is_discounted' => 'boolean',
         ]);
 
-        $data = $request->except('variations');
-        $data['slug'] = Str::slug($data['name']) . '-' . Str::random(6);
-        $data['created_by_admin_id'] = $request->user()->id;
+        return DB::transaction(function () use ($request, $validated) {
 
-        return DB::transaction(function () use ($data, $request) {
-            $product = Product::create($data);
+            $product = Product::create([
+                'name' => $validated['name'],
+                'slug' => Str::slug($validated['name']) . '-' . Str::random(6),
+                'description' => $validated['description'] ?? null,
 
-            if ($request->has('variations')) {
-                foreach ($request->variations as $var) {
-                    $product->variations()->create($var);
-                }
-            }
-            
-            return response()->json($product->load('variations'), 201);
+                'category_id' => $validated['category_id'],
+                'brand' => $validated['brand'] ?? null,
+
+                'product_type' => $validated['product_type'] ?? null,
+                'product_sku' => $validated['product_sku'] ?? null,
+                'unit' => $validated['unit'] ?? null,
+
+                // Prices
+                'base_price' => $validated['price'],
+                'purchase_price' => $validated['purchase_price'] ?? 0,
+                'unit_price' => $validated['unit_price'] ?? 0,
+
+                // Stock
+                'min_order_qty' => $validated['min_order_qty'] ?? 1,
+                'current_stock' => $validated['current_stock'] ?? 0,
+
+                // Discount
+                'discount_type' => $validated['discount_type'] ?? 'None',
+                'discount_amount' => $validated['discount_amount'] ?? 0,
+
+                // Tax
+                'tax_amount' => $validated['tax_amount'] ?? 0,
+                'tax_calculation' => $validated['tax_calculation'] ?? null,
+
+                // Shipping
+                'shipping_cost' => $validated['shipping_cost'] ?? 0,
+                'shipping_multiply' => $validated['shipping_multiply'] ?? false,
+
+                // Loyalty
+                'loyalty_point' => $validated['loyalty_point'] ?? 0,
+                // Image
+                'image' => $validated['image'] ?? null,
+
+                // JSON
+                'variations' => $request->variations ?? [],
+                'attributes' => $request->attributes ?? [],
+                'colors' => $request->colors ?? [],
+                'tags' => $request->tags ?? [],
+
+                // Status
+                'status' => $validated['status'] ?? 'active',
+                'is_featured' => $validated['is_featured'] ?? false,
+                'is_trending' => $validated['is_trending'] ?? false,
+                'is_discounted' => $validated['is_discounted'] ?? false,
+
+                'created_by_admin_id' => $request->user()->id,
+            ]);
+
+            return response()->json($product, 201);
         });
     }
 
     public function show(string $id)
     {
-        return Product::with(['variations', 'category', 'creator'])->findOrFail($id);
+        return response()->json(
+            Product::with(['category', 'creator'])->findOrFail($id)
+        );
     }
 
     public function update(Request $request, string $id)
     {
         $product = Product::findOrFail($id);
-        $product->update($request->except('variations'));
-        
-        // Basic variation handling: if variations provided, replace all? 
-        // Or update specific ones? For MVP, let's assume UI handles logic or separate endpoint.
-        
+
+        $data = $request->except(['slug', 'created_by_admin_id']);
+
+        if ($request->has('name')) {
+            $data['slug'] = Str::slug($request->name) . '-' . Str::random(6);
+        }
+
+        $product->update($data);
+
         return response()->json($product);
     }
 
     public function destroy(string $id)
     {
-        Product::destroy($id);
-        return response()->json(null, 204);
+        Product::findOrFail($id)->delete();
+        return response()->json(['message' => 'Product deleted successfully'], 204);
     }
 }
