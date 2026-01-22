@@ -118,49 +118,49 @@ class DatabaseSeeder extends Seeder
             ]
         ];
 
-        foreach ($categoryModels as $category) {
-            $images = $categoryImages[$category->slug] ?? $categoryImages['default'];
+        // foreach ($categoryModels as $category) {
+        //     $images = $categoryImages[$category->slug] ?? $categoryImages['default'];
             
-            for ($i = 1; $i <= 10; $i++) {
-                // Pick random image from category set
-                $mainImage = $images[array_rand($images)];
-                $detailImage1 = $images[array_rand($images)];
-                $detailImage2 = $images[array_rand($images)];
+        //     for ($i = 1; $i <= 10; $i++) {
+        //         // Pick random image from category set
+        //         $mainImage = $images[array_rand($images)];
+        //         $detailImage1 = $images[array_rand($images)];
+        //         $detailImage2 = $images[array_rand($images)];
 
-                $product = Product::create([
-                    'name' => "{$category->name} Item {$i} - Premium Quality",
-                    'slug' => Str::slug("{$category->name} {$i} " . Str::random(5)),
-                    'description' => "This is a premium high-quality {$category->name} item sourced directly from top manufacturers. It features durable materials, modern design, and exceptional craftsmanship tailored for the international market.",
-                    'category_id' => $category->id,
-                    'source_type' => 'api',
-                    'supplier_id' => '1688-DEMO-' . $i,
-                    'base_price' => rand(500, 5000),
-                    'sale_price' => rand(0, 1) ? rand(300, 4000) : null,
-                    'stock_quantity' => rand(10, 100),
-                    'unit' => 'piece',
-                    'weight_kg' => rand(1, 50) / 10,
-                    'is_active' => true,
-                    'is_featured' => rand(0, 1),
-                    'images' => [$mainImage, $detailImage1, $detailImage2],
-                ]);
+        //         $product = Product::create([
+        //             'name' => "{$category->name} Item {$i} - Premium Quality",
+        //             'slug' => Str::slug("{$category->name} {$i} " . Str::random(5)),
+        //             'description' => "This is a premium high-quality {$category->name} item sourced directly from top manufacturers. It features durable materials, modern design, and exceptional craftsmanship tailored for the international market.",
+        //             'category_id' => $category->id,
+        //             'source_type' => 'api',
+        //             'supplier_id' => '1688-DEMO-' . $i,
+        //             'base_price' => rand(500, 5000),
+        //             'sale_price' => rand(0, 1) ? rand(300, 4000) : null,
+        //             'stock_quantity' => rand(10, 100),
+        //             'unit' => 'piece',
+        //             'weight_kg' => rand(1, 50) / 10,
+        //             'is_active' => true,
+        //             'is_featured' => rand(0, 1),
+        //             'images' => [$mainImage, $detailImage1, $detailImage2],
+        //         ]);
 
-                // Create variations
-                $colors = ['Red', 'Blue', 'Black', 'White', 'Silver'];
-                $sizes = ['S', 'M', 'L', 'XL', 'Free Size'];
+        //         // Create variations
+        //         $colors = ['Red', 'Blue', 'Black', 'White', 'Silver'];
+        //         $sizes = ['S', 'M', 'L', 'XL', 'Free Size'];
                 
-                foreach (array_rand(array_flip($colors), rand(2, 4)) as $color) {
-                    foreach (array_rand(array_flip($sizes), rand(2, 3)) as $size) {
-                        $product->variations()->create([
-                            'color' => $color,
-                            'size' => $size,
-                            'price_modifier' => rand(0, 200),
-                            'stock_quantity' => rand(5, 20),
-                            'sku' => strtoupper(Str::random(8)),
-                        ]);
-                    }
-                }
-            }
-        }
+        //         foreach (array_rand(array_flip($colors), rand(2, 4)) as $color) {
+        //             foreach (array_rand(array_flip($sizes), rand(2, 3)) as $size) {
+        //                 $product->variations()->create([
+        //                     'color' => $color,
+        //                     'size' => $size,
+        //                     'price_modifier' => rand(0, 200),
+        //                     'stock_quantity' => rand(5, 20),
+        //                     'sku' => strtoupper(Str::random(8)),
+        //                 ]);
+        //             }
+        //         }
+        //     }
+        // }
 
         // 4. Seed Banners
         $this->command->info('Seeding Banners...');
