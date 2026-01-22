@@ -29,6 +29,7 @@ import Profile from './pages/customer/Profile';
 import CustomerOrders from './pages/customer/Orders';
 import Wishlist from './pages/customer/Wishlist';
 import ProductList from './pages/admin/ProductList';
+import FetchData from './pages/admin/FetchData';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, roles = [] }) => {
@@ -99,6 +100,7 @@ const AppRouter = () => {
                                 <Route path="categories/sub-sub-categories" element={<SubsubCategories />} />
                                 <Route path="banners" element={<Banners />} />
                                 <Route path="appearance" element={<Appearance />} />
+                                <Route path="fetchdata" element={<FetchData />} />
                             </Route>
 
                             <Route path="*" element={<div className="p-10 text-center">404 Not Found</div>} />

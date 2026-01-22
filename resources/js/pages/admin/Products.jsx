@@ -10,6 +10,10 @@ const AddNewProduct = () => {
     const [tagInput, setTagInput] = useState("");
     const [brands, setBrands] = useState([]);
     const [selectedColors, setSelectedColors] = useState([]);
+
+    // gallery image
+    const [galleryUploading, setGalleryUploading] = useState(false);
+const [galleryUploadProgress, setGalleryUploadProgress] = useState({});
     const [availableColors] = useState([
         { id: 1, name: "Yellow", color: "bg-yellow-500" },
         { id: 2, name: "WhiteSmoke", color: "bg-gray-300" },
@@ -435,6 +439,100 @@ useEffect(() => {
         }
     };
 
+    /* ================= GALLERY IMAGE UPLOAD ================= */
+const handleGalleryImageUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    
+    setGalleryUploading(true);
+    const uploadedImages = [];
+    
+    // Create an array of promises for parallel upload
+    const uploadPromises = Array.from(files).map(async (file, index) => {
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            throw new Error(`File "${file.name}" is too large. Maximum size is 5MB.`);
+        }
+        
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            throw new Error(`File "${file.name}" is not a valid image type.`);
+        }
+        
+        const fd = new FormData();
+        fd.append("image", file);
+        fd.append("folder", "products/gallery");
+        
+        try {
+            const { data } = await api.post("/admin/v1/upload", fd, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            
+            const imageUrl = `${import.meta.env.VITE_API_BASE_URL}/storage/${data.path}`;
+            return { success: true, url: imageUrl, fileName: file.name };
+        } catch (err) {
+            console.error(`Failed to upload image: ${file.name}`, err);
+            return { success: false, fileName: file.name, error: err.message };
+        }
+    });
+    
+    try {
+        // Execute all uploads in parallel
+        const results = await Promise.all(uploadPromises);
+        
+        // Filter successful uploads
+        const successfulUploads = results.filter(result => result.success);
+        const failedUploads = results.filter(result => !result.success);
+        
+        // Add successful uploads to gallery
+        if (successfulUploads.length > 0) {
+            const newImageUrls = successfulUploads.map(result => result.url);
+            setFormData(prev => ({
+                ...prev,
+                gallery_images: [...prev.gallery_images, ...newImageUrls]
+            }));
+            
+            // Show success message
+            if (successfulUploads.length > 0) {
+                alert(`Successfully uploaded ${successfulUploads.length} image(s).`);
+            }
+        }
+        
+        // Show errors for failed uploads
+        if (failedUploads.length > 0) {
+            const errorMessages = failedUploads.map(result => 
+                `${result.fileName}: ${result.error}`
+            ).join('\n');
+            alert(`Failed to upload ${failedUploads.length} image(s):\n${errorMessages}`);
+        }
+        
+    } catch (error) {
+        console.error("Gallery upload failed:", error);
+        alert("Failed to upload gallery images. Please try again.");
+    } finally {
+        setGalleryUploading(false);
+        setGalleryUploadProgress({});
+    }
+};
+
+// Remove single gallery image
+const handleRemoveGalleryImage = (index) => {
+    setFormData(prev => ({
+        ...prev,
+        gallery_images: prev.gallery_images.filter((_, i) => i !== index)
+    }));
+};
+
+// Clear all gallery images
+const handleClearAllGalleryImages = () => {
+    if (window.confirm("Are you sure you want to remove all gallery images?")) {
+        setFormData(prev => ({
+            ...prev,
+            gallery_images: []
+        }));
+    }
+};
+
     /* ================= SUBMIT ================= */
     // const handleSubmit = async (e) => {
     //     e.preventDefault();
@@ -546,7 +644,7 @@ useEffect(() => {
                 
                 // Image
                 image: formData.image,
-                gallery_images: formData.galleryImages || [],
+                gallery_images: formData.gallery_images || [],
                 
                 // Tags
                 tags: searchTags,
@@ -1816,6 +1914,7 @@ useEffect(() => {
                         </div>
                     </div>
 {/* Image Gallery Section */}
+{/* Image Gallery Section */}
 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
     <h2 className="text-lg font-semibold text-gray-700 mb-6">
         Image Gallery
@@ -1823,98 +1922,195 @@ useEffect(() => {
 
     <div className="space-y-6">
         {/* Uploaded Images Preview */}
-        {formData.galleryImages && formData.galleryImages.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {formData.galleryImages.map((image, index) => (
-                    <div key={index} className="relative group">
-                        <img
-                            src={image}
-                            alt={`Gallery Image ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg border border-gray-300"
-                        />
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setFormData((prev) => ({
-                                    ...prev,
-                                    galleryImages: prev.galleryImages.filter(
-                                        (_, i) => i !== index
-                                    ),
-                                }))
-                            }
-                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M6 18L18 6M6 6l12 12"
+        {formData.gallery_images.length > 0 ? (
+            <div>
+                <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-gray-600">
+                        Gallery Images ({formData.gallery_images.length})
+                    </label>
+                    <button
+                        type="button"
+                        onClick={handleClearAllGalleryImages}
+                        className="text-sm text-red-600 hover:text-red-800 font-medium"
+                    >
+                        Clear All
+                    </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {formData.gallery_images.map((image, index) => (
+                        <div key={index} className="relative group">
+                            <div className="aspect-square overflow-hidden rounded-lg border border-gray-300 bg-gray-100">
+                                <img
+                                    src={image}
+                                    alt={`Gallery Image ${index + 1}`}
+                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                                    onError={(e) => {
+                                        e.target.src = 'https://via.placeholder.com/150?text=Image+Error';
+                                    }}
                                 />
-                            </svg>
-                        </button>
-                    </div>
-                ))}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleRemoveGalleryImage(index)}
+                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                title="Remove image"
+                            >
+                                <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs p-1 text-center truncate">
+                                Image {index + 1}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        ) : (
+            <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                <svg
+                    className="w-16 h-16 text-gray-400 mx-auto mb-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                </svg>
+                <p className="text-gray-500">No gallery images uploaded yet</p>
             </div>
         )}
 
-        {/* File Upload */}
-        <div className="space-y-2">
+        {/* File Upload Section */}
+        <div className="space-y-4">
             <label className="block text-sm font-medium text-gray-600">
-                Upload Images
+                Upload Multiple Images
             </label>
+            
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
                 <input
                     type="file"
                     accept="image/*"
                     multiple
                     onChange={(e) => {
-                        const files = Array.from(e.target.files);
-                        const fileURLs = files.map((file) =>
-                            URL.createObjectURL(file)
-                        );
-                        setFormData((prev) => ({
-                            ...prev,
-                            galleryImages: [
-                                ...(prev.galleryImages || []),
-                                ...fileURLs,
-                            ],
-                        }));
+                        const files = e.target.files;
+                        if (files && files.length > 0) {
+                            handleGalleryImageUpload(files);
+                        }
+                        e.target.value = ''; // Reset input
                     }}
                     className="hidden"
                     id="gallery-upload"
+                    disabled={galleryUploading}
                 />
                 <label
                     htmlFor="gallery-upload"
-                    className="cursor-pointer"
+                    className={`cursor-pointer ${galleryUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                     <div className="flex flex-col items-center">
-                        <svg
-                            className="w-12 h-12 text-gray-400 mb-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                        </svg>
-                        <span className="text-gray-600 font-medium">
-                            Click to upload or drag and drop
-                        </span>
-                        <span className="text-gray-500 text-sm mt-1">
-                            SVG, PNG, JPG or GIF (max. 5MB each)
-                        </span>
+                        {galleryUploading ? (
+                            <>
+                                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                <span className="text-gray-600 font-medium">
+                                    Uploading Images...
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                <svg
+                                    className="w-12 h-12 text-gray-400 mb-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                                    />
+                                </svg>
+                                <span className="text-gray-600 font-medium">
+                                    Click to upload or drag and drop
+                                </span>
+                                <span className="text-gray-500 text-sm mt-1">
+                                    PNG, JPG, GIF, SVG, WEBP (max. 5MB each)
+                                </span>
+                                <span className="text-blue-500 text-sm mt-2 font-medium">
+                                    Select multiple files
+                                </span>
+                            </>
+                        )}
                     </div>
                 </label>
+                
+                {/* Drag and drop hint */}
+                <p className="text-xs text-gray-400 mt-4">
+                    You can select multiple images at once
+                </p>
+            </div>
+        </div>
+
+        {/* Image URL Input (Alternative) */}
+        <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-600">
+                Or add image URLs (one per line)
+            </label>
+            <div className="relative">
+                <textarea
+                    rows="3"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg&#10;https://example.com/image3.jpg"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.ctrlKey) {
+                            const textarea = e.target;
+                            const urls = textarea.value
+                                .split('\n')
+                                .map(url => url.trim())
+                                .filter(url => url !== '' && url.startsWith('http'));
+                            
+                            // Filter out duplicates
+                            const existingUrls = formData.gallery_images;
+                            const newUrls = urls.filter(url => !existingUrls.includes(url));
+                            
+                            if (newUrls.length > 0) {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    gallery_images: [...prev.gallery_images, ...newUrls]
+                                }));
+                                alert(`Added ${newUrls.length} new image URL(s)`);
+                                textarea.value = '';
+                            } else if (urls.length > 0) {
+                                alert('All URLs are already added to gallery');
+                            }
+                        }
+                    }}
+                />
+                <div className="absolute bottom-2 right-2">
+                    <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
+                        Ctrl + Enter to add
+                    </span>
+                </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Enter one URL per line. Press Ctrl+Enter to add them.</span>
             </div>
         </div>
     </div>
