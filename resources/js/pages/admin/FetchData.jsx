@@ -13,6 +13,9 @@ function FetchData() {
     failed: 0
   });
 
+  // Local cache for categories to avoid relying solely on state
+  const categoryCache = {};
+
   // Fetch existing categories and products from backend
   const fetchExistingData = async () => {
     setLoading(true);
@@ -49,10 +52,28 @@ function FetchData() {
   // Check if category already exists
   const findCategoryByName = (categoryName) => {
     if (!categoryName) return null;
-    return categories.find(cat => 
+
+    console.log("Checking category:", categoryName);
+    console.log("Category cache:", Object.keys(categoryCache));
+    console.log("Existing categories in state:", categories.map(cat => cat.name));
+
+    // Check in the local cache first
+    if (categoryCache[categoryName.toLowerCase().trim()]) {
+      return categoryCache[categoryName.toLowerCase().trim()];
+    }
+
+    // Check in the categories state
+    const existingCategory = categories.find(cat => 
       cat.name && categoryName && 
       cat.name.toLowerCase().trim() === categoryName.toLowerCase().trim()
     );
+
+    if (existingCategory) {
+      // Add to cache for future lookups
+      categoryCache[categoryName.toLowerCase().trim()] = existingCategory;
+    }
+
+    return existingCategory;
   };
 
   // Check if product already exists by api_id
@@ -64,12 +85,14 @@ function FetchData() {
   const ensureCategoryExists = async (categoryName, categorySlug, categoryImage) => {
     if (!categoryName) return null;
 
+    // Check if the category already exists
     const existingCategory = findCategoryByName(categoryName);
     if (existingCategory) {
       console.log(`Category already exists: ${categoryName} (ID: ${existingCategory.id})`);
-      return existingCategory.id;
+      return existingCategory.id; // Return the existing category ID
     }
 
+    // If the category does not exist, create it
     try {
       console.log(`Creating new category: ${categoryName}`);
       const categoryData = {
@@ -82,12 +105,13 @@ function FetchData() {
 
       const res = await api.post("/admin/v1/categories", categoryData);
       const newCategory = res.data;
-      
-      // Update local categories state
+
+      // Update local cache and categories state
+      categoryCache[categoryName.toLowerCase().trim()] = newCategory;
       setCategories(prev => [...prev, newCategory]);
+
       console.log(`Category created: ${newCategory.name} (ID: ${newCategory.id})`);
-      
-      return newCategory.id;
+      return newCategory.id; // Return the new category ID
     } catch (error) {
       console.error(`Error creating category ${categoryName}:`, error.response?.data || error);
       return null;
@@ -100,25 +124,78 @@ function FetchData() {
   };
 
   // Function to get gallery images from product
-  const getGalleryImages = (product) => {
-    if (!product || !product.product_images) return [];
+//   const getGalleryImages = (product) => {
+//     if (!product || !product.product_images) return [];
     
-    if (Array.isArray(product.product_images)) {
-      // If it's an array of objects with product_image property
-      if (product.product_images.length > 0 && 
-          product.product_images[0] && 
-          typeof product.product_images[0] === 'object' && 
-          product.product_images[0].product_image) {
-        return product.product_images.map(img => img.product_image).filter(Boolean);
-      }
-      // If it's an array of strings
-      if (typeof product.product_images[0] === 'string') {
-        return product.product_images;
+//     if (Array.isArray(product.product_images)) {
+//       // If it's an array of objects with product_image property
+//       if (product.product_images.length > 0 && 
+//           product.product_images[0] && 
+//           typeof product.product_images[0] === 'object' && 
+//           product.product_images[0].product_image) {
+//         return product.product_images.map(img => img.product_image).filter(Boolean);
+//       }
+//       // If it's an array of strings
+//       if (typeof product.product_images[0] === 'string') {
+//         return product.product_images;
+//       }
+//     }
+    
+//     return [];
+//   };
+const getGalleryImages = (product) => {
+    if (!product || !product.product_images) return [];
+  
+    // force array handling
+    const images = [];
+  
+    for (let i = 0; i < product.product_images.length; i++) {
+      const img = product.product_images[i];
+  
+      if (img && img.product_image) {
+        images.push(img.product_image);
       }
     }
-    
-    return [];
+  
+    return images;
   };
+  
+  const buildAttributesPayload = (variants) => {
+    console.log("Variants data received:", variants); // Add this line
+    
+    if (!Array.isArray(variants)) {
+      console.log("Variants is not an array:", typeof variants);
+      return [];
+    }
+  
+    console.log(`Processing ${variants.length} variants`);
+    
+    const map = {};
+    
+    variants.forEach((v, index) => {
+      console.log(`Variant ${index}:`, v); // Debug each variant
+      if (!v.attribute || !v.variant) {
+        console.log(`Variant ${index} missing attribute or variant:`, v);
+        return;
+      }
+  
+      if (!map[v.attribute]) {
+        map[v.attribute] = new Set();
+      }
+  
+      map[v.attribute].add(v.variant);
+    });
+  
+    const result = Object.keys(map).map(attr => ({
+      name: attr,
+      values: Array.from(map[attr])
+    }));
+    
+    console.log("Built attributes payload:", result);
+    return result;
+  };
+  
+  
 
   const handleFetchData = async () => {
     setLoading(true);
@@ -134,7 +211,7 @@ function FetchData() {
       // Fetch products from Mohasagor API
       const response = await api.get("/mohasagor/products");
       const products = response.data.data.products;
-
+        console.log(products);
       if (!products || products.length === 0) {
         console.log("No products found.");
         alert("No products found in the API.");
@@ -222,7 +299,7 @@ function FetchData() {
             
             // JSON fields - start with empty arrays
             variations: [],
-            attributes: [],
+            attributes: buildAttributesPayload(product.product_variants) || [],
             colors: [],
             tags: [],
             
@@ -242,7 +319,8 @@ function FetchData() {
           };
 
           // Step 1: Create product without gallery_images
-          console.log(`Creating product: ${productData.name}`);
+          console.log(`Creating product: ${productData}`);
+          console.log(productData);
           const createRes = await api.post("/admin/v1/products", productData);
           const productId = createRes.data.id;
           
