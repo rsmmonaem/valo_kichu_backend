@@ -29,6 +29,12 @@ class ProductController extends Controller
             // Category / Brand
             'category_id' => 'required|exists:categories,id',
             'brand' => 'nullable|string',
+            
+            'category' =>'nullable|string',
+            'api_id' => 'nullable|numeric|min:0',
+            'product_code'=>'nullable|numeric|min:0',
+            'api_from'=>'nullable|string',
+            'slug'=>'nullable|string',
 
             // Product Info
             'product_type' => 'nullable|string',

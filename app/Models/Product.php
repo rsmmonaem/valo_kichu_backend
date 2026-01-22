@@ -10,7 +10,10 @@ use App\Models\User;
 class Product extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'description', 'category_id', 'brand',
+        'name', 'slug', 'description', 'category_id', 'brand','category',
+        'api_id',
+        'product_code',
+        'api_from',
         'product_sku', 'product_type', 'unit', 'base_price', 'sale_price',
         'unit_price', 'purchase_price', 'stock_quantity', 'min_order_qty', 'current_stock',
         'discount_type', 'discount_amount', 'tax_amount', 'tax_calculation',

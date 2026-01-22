@@ -11,6 +11,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\MohasagorController;
 use Illuminate\Support\Facades\Artisan;
 
 /*
@@ -38,6 +39,8 @@ Route::get('/storage-link', function () {
     ]);
 });
 
+// Mohasagor route
+Route::get('/mohasagor/products', [MohasagorController::class, 'fetchData']);
 // Public Routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
