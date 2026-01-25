@@ -96,7 +96,7 @@ const AdminLayout = () => {
                             !isSidebarOpen && "hidden"
                         )}
                     >
-                        SafayatAdmin
+                        ValokichuAdmin
                     </span>
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}

@@ -12,6 +12,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\MohasagorController;
+use App\Http\Controllers\MohasagorController1;
 use Illuminate\Support\Facades\Artisan;
 
 /*
@@ -41,6 +42,8 @@ Route::get('/storage-link', function () {
 
 // Mohasagor route
 Route::get('/mohasagor/products', [MohasagorController::class, 'fetchData']);
+// Route::get('/mohasagor/import', [MohasagorController1::class, 'fetchAndProcessProducts']);
+Route::post('/admin/v1/mohasagor/import', [MohasagorController1::class, 'importProducts']);
 // Public Routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -160,4 +163,4 @@ Route::group(['prefix' => 'v1'], function () {
 // Include Admin Routes
 Route::group(['prefix' => 'admin', 'middleware' => 'auth:sanctum'], function () {
     require base_path('routes/admin.php');
-}); 
+});

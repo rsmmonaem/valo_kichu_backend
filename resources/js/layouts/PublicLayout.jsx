@@ -56,7 +56,7 @@ const PublicLayout = () => {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
             {/* Top Bar */}
-            <div className="bg-gray-100 text-xs text-gray-500 py-1 border-b border-gray-200">
+            {/* <div className="bg-gray-100 text-xs text-gray-500 py-1 border-b border-gray-200">
                 <div className="container mx-auto px-4 flex justify-between items-center">
                     <div className="flex gap-4">
                         <span>Language: English</span>
@@ -68,16 +68,16 @@ const PublicLayout = () => {
                         <Link to="/app" className="hover:text-primary">Download App</Link>
                     </div>
                 </div>
-            </div>
+            </div> */}
 
             {/* Main Header (Sticky) */}
             <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100">
                 <div className="container mx-auto px-4 py-4">
                     <div className="flex items-center justify-between gap-4 md:gap-8">
                         {/* Logo */}
-                        <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
+                        <Link to="/" className="flex items-center gap-2 shrink-0 group">
                             {settings.site_logo ? (
-                                <img src={settings.site_logo.startsWith('http') ? settings.site_logo : `/storage/${settings.site_logo}`} alt="Logo" className="h-10 w-auto group-hover:scale-105 transition-transform" />
+                                <img src={settings.site_logo.startsWith('http') ? settings.site_logo : `/storage/${settings.site_logo}`} alt="Logo" className="h-10 w-auto group-hover:scale-105 transition-transform" /> 
                             ) : (
                                 <>
                                     <div className="bg-primary text-white p-2 rounded-lg font-bold text-xl group-hover:scale-105 transition-transform duration-200">

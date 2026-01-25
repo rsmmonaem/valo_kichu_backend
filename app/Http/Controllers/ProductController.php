@@ -27,7 +27,9 @@ class ProductController extends Controller
             $query->where('name', 'like', '%' . $request->search . '%');
         }
 
+        // return response()->json($query->paginate(20));
         return response()->json($query->paginate(20));
+
     }
 
     public function show(string $id)

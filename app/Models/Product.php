@@ -17,7 +17,7 @@ class Product extends Model
         'product_sku', 'product_type', 'unit', 'base_price', 'sale_price',
         'unit_price', 'purchase_price', 'stock_quantity', 'min_order_qty', 'current_stock',
         'discount_type', 'discount_amount', 'tax_amount', 'tax_calculation',
-        'shipping_cost', 'shipping_multiply', 'loyalty_point','image','gallery_images',
+        'shipping_cost', 'shipping_multiply', 'loyalty_point','image','video_link','gallery_images',
         'variations', 'attributes', 'colors', 'tags',
         'status', 'is_featured', 'is_trending', 'is_discounted'
     ];
@@ -33,6 +33,7 @@ class Product extends Model
         'shipping_cost' => 'decimal:2',
         'loyalty_point' => 'decimal:2',
         'image' => 'string',
+        'video_link' => 'string',
         'gallery_images' =>'array',
         'variations' => 'array',
         'attributes' => 'array',
@@ -63,6 +64,11 @@ class Product extends Model
     public function getDiscountTypeAttribute()
     {
         return 'flat';
+    }
+
+    public function getGalleryImagesAttribute($value)
+    {
+        return $value ? explode(',', $value) : [];
     }
 
     public function category()

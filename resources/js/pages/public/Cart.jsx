@@ -5,6 +5,7 @@ import { Trash2, Plus, Minus, ArrowRight } from 'lucide-react';
 
 const Cart = () => {
     const { cart, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
+    console.log("Cart Contents:", cart);
     const navigate = useNavigate();
 
     if (cart.length === 0) {
@@ -37,11 +38,13 @@ const Cart = () => {
                         {cart.map((item, idx) => (
                             <div key={`${item.id}-${idx}`} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-4">
                                 <div className="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                                    {item.images && item.images.length > 0 ? (
-                                        <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No Image</div>
-                                    )}
+                                    {item.image && (
+                                        <img src={`${import.meta.env.VITE_API_BASE_URL}/storage/products/${item.image}`} alt={item.name} className="w-full h-full object-cover" />
+                                    ) 
+                                    // : (
+                                    //     <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No Image</div>
+                                    // )
+                                    }
                                 </div>
                                 <div className="flex-1 flex flex-col justify-between">
                                     <div className="flex justify-between items-start">

@@ -30,6 +30,7 @@ import CustomerOrders from './pages/customer/Orders';
 import Wishlist from './pages/customer/Wishlist';
 import ProductList from './pages/admin/ProductList';
 import FetchData from './pages/admin/FetchData';
+import FetchData1 from './pages/admin/FetchData1';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, roles = [] }) => {
@@ -101,6 +102,7 @@ const AppRouter = () => {
                                 <Route path="banners" element={<Banners />} />
                                 <Route path="appearance" element={<Appearance />} />
                                 <Route path="fetchdata" element={<FetchData />} />
+                                <Route path="fetchdata1" element={<FetchData1 />} />
                             </Route>
 
                             <Route path="*" element={<div className="p-10 text-center">404 Not Found</div>} />

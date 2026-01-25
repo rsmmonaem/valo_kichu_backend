@@ -6,7 +6,7 @@ function ProductCard({product}) {
             <div className="aspect-square bg-gray-100 relative overflow-hidden">
                 {product.image && (
                     <img
-                        src={product.image}
+                        src={`${import.meta.env.VITE_API_BASE_URL}/storage/products/${product.image}`}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                     />
