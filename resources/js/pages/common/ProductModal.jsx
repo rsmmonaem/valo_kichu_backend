@@ -87,7 +87,7 @@ export default function ProductModal({ product, onClose }) {
     addToCart(product, quantity);
     onClose();
   };
-
+  // import { useAuth } from './context/AuthProvide';
   const handleBuyNow = () => {
     addToCart(product, quantity);
     navigate("/checkout");

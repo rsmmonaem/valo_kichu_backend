@@ -31,6 +31,7 @@ import Wishlist from './pages/customer/Wishlist';
 import ProductList from './pages/admin/ProductList';
 import FetchData from './pages/admin/FetchData';
 import FetchData1 from './pages/admin/FetchData1';
+import GuestCheckout from './pages/public/GuestCheckout';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, roles = [] }) => {
@@ -57,11 +58,18 @@ const AppRouter = () => {
                                 <Route path="products" element={<Shop />} />
                                 <Route path="products/:id" element={<ProductDetails />} />
                                 <Route path="cart" element={<Cart />} />
-                                <Route path="checkout" element={
+                                {/* <Route path="checkout" element={
                                     <ProtectedRoute>
                                         <Checkout />
                                     </ProtectedRoute>
+                                } /> */}
+                                {/* Without Protected route */}
+                                <Route path="checkout" element={
+                                   
+                                        <Checkout />
+                                   
                                 } />
+                                <Route path="guest-checkout" element={<GuestCheckout />} />
                                 <Route path="order-success" element={
                                     <ProtectedRoute>
                                         <OrderSuccess />
