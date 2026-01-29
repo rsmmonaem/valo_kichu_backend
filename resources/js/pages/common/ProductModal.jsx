@@ -136,7 +136,8 @@ export default function ProductModal({ product, onClose }) {
                 </div>
 
                 {/* Gallery */}
-                <div className="grid grid-cols-4 gap-0 mt-4 overflow-x-auto pb-2">
+                {/* <div className="grid grid-cols-4 md:flex md:gap-5 mt-4 overflow-x-auto pb-2"> */}
+                <div className="grid grid-cols-3 gap-4 md:flex md:flex-wrap md:gap-5 mt-4 pb-2">
                   {galleryImages.map((g) => (
                     <button
                       key={g.id}

@@ -4,6 +4,7 @@ function ProductCard({product}) {
     return (
         <div>
             <div className="aspect-square bg-gray-100 relative overflow-hidden">
+                <h1>hello</h1>
                 {product.image && (
                     <img
                         src={`${import.meta.env.VITE_API_BASE_URL}/storage/products/${product.image}`}

@@ -19,7 +19,7 @@ class Product extends Model
         'discount_type', 'discount_amount', 'tax_amount', 'tax_calculation',
         'shipping_cost', 'shipping_multiply', 'loyalty_point','image','video_link','gallery_images',
         'variations', 'attributes', 'colors', 'tags',
-        'status', 'is_featured', 'is_trending', 'is_discounted'
+        'status', 'is_featured', 'is_trending', 'is_discounted','specifications',
     ];
 
 
@@ -43,6 +43,7 @@ class Product extends Model
         'is_featured' => 'boolean',
         'is_trending' => 'boolean',
         'is_discounted' => 'boolean',
+        'specifications' => 'array',
     ];
 
     protected $appends = [

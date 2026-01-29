@@ -152,7 +152,7 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
     return (
         <div>
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6 text-black">
                 <h1 className="text-2xl font-bold text-gray-800">
                     {pageTitle}
                 </h1>
@@ -284,7 +284,7 @@ const CategoryTemplate = ({ pageTitle, buttonName }) => {
 
             {/* Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 text-black">
                     <div className="bg-white rounded-xl p-6 w-full max-w-md">
                         <h2 className="text-xl font-bold mb-4">
                             {editingCategory ? "Edit Category" : "New Category"}

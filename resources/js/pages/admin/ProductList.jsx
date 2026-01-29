@@ -37,7 +37,7 @@ const ProductList = () => {
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Products</h1>
+                <h1 className="text-2xl font-bold text-black">Products</h1>
                 <button
                     onClick={() => navigate("/admin/products/new")}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
@@ -48,18 +48,19 @@ const ProductList = () => {
 
             {/* Search */}
             <div className="mb-4 relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black" size={18} />
                 <input
                     className="w-full pl-10 pr-4 py-2 border rounded-lg"
                     placeholder="Search products..."
                     value={search}
+                    
                     onChange={(e) => setSearch(e.target.value)}
                 />
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-xl shadow border">
-                <table className="w-full">
+            <div className="bg-white rounded-xl shadow border text-black">
+                <table className="w-full text-black">
                     <thead className="bg-gray-50 border-b">
                         <tr>
                             <th className="p-4 text-left">Product</th>
@@ -71,13 +72,13 @@ const ProductList = () => {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="4" className="p-6 text-center">Loading...</td>
+                                <td colSpan="4" className="p-6 text-center" style={{ color: "black" }}>Loading...</td>
                             </tr>
                         ) : products.map(p => (
                             <tr key={p.id} className="border-t hover:bg-gray-50">
-                                <td className="p-4 font-medium">{p.name}</td>
-                                <td className="p-4">৳ {p.base_price}</td>
-                                <td className="p-4">{p.stock_quantity}</td>
+                                <td className="p-4 font-medium" style={{ color: "black" }}>{p.name}</td>
+                                <td className="p-4" style={{ color: "black" }}>৳ {p.base_price}</td>
+                                <td className="p-4" style={{ color: "black" }}>{p.stock_quantity}</td>
                                 <td className="p-4 text-right">
                                     <button
                                         onClick={() => navigate(`/admin/products/${p.id}/edit`)}

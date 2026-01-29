@@ -25,6 +25,7 @@ class ProductController extends Controller
             // Basic Info
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'specifications' => 'nullable|array',
 
             // Category / Brand
             'category_id' => 'required|exists:categories,id',
@@ -87,6 +88,7 @@ class ProductController extends Controller
                 'name' => $validated['name'],
                 'slug' => Str::slug($validated['name']) . '-' . Str::random(6),
                 'description' => $validated['description'] ?? null,
+                'specifications' => $validated['specifications'] ?? null,
 
                 'category_id' => $validated['category_id'],
                 'brand' => $validated['brand'] ?? null,

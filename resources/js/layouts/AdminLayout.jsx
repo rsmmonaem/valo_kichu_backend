@@ -129,7 +129,7 @@ const AdminLayout = () => {
                                     className={clsx(
                                         "flex items-center justify-between p-3 rounded-lg transition-colors cursor-pointer",
                                         isActive
-                                            ? "bg-blue-600 text-white"
+                                            ? "bg-blue-600 text-black"
                                             : "text-slate-300 hover:bg-slate-800 hover:text-white"
                                     )}
                                 >
