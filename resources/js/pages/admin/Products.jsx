@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import api from "../../services/api";
-import { data } from "react-router-dom";
 
 const Products = () => {
     const [categories, setCategories] = useState([]);
@@ -13,7 +12,6 @@ const Products = () => {
 
     // gallery image
     const [galleryUploading, setGalleryUploading] = useState(false);
-const [galleryUploadProgress, setGalleryUploadProgress] = useState({});
     const [availableColors] = useState([
         { id: 1, name: "Yellow", color: "bg-yellow-500" },
         { id: 2, name: "WhiteSmoke", color: "bg-gray-300" },
@@ -22,30 +20,16 @@ const [galleryUploadProgress, setGalleryUploadProgress] = useState({});
         { id: 5, name: "Green", color: "bg-green-500" },
         { id: 6, name: "Black", color: "bg-black" },
     ]);
-    const [variations, setVariations] = useState([
-        // {
-        //     id: 1,
-        //     color: "Yellow",
-        //     colorClass: "bg-yellow-500",
-        //     code: "",
-        //     sku: "-Yellow",
-        //     stock: 1,
-        // },
-        // {
-        //     id: 2,
-        //     color: "WhiteSmoke",
-        //     colorClass: "bg-gray-300",
-        //     code: "",
-        //     sku: "-WhiteSmoke",
-        //     stock: 1,
-        // },
-    ]);
+
+    const [variations, setVariations] = useState([]);
+
     const availAttributes = [
         { id: 1, name: "Weight", value: [] },
         { id: 2, name: "Size", value: [] },
         { id: 3, name: "Ram size", value: [] },
         { id: 4, name: "Pic", value: [] },
     ];
+
     const [selectedAttributes, setSelectedAttributes] = useState([]);
     const [shippingMultiply, setShippingMultiply] = useState(true);
 
@@ -70,7 +54,7 @@ const [galleryUploadProgress, setGalleryUploadProgress] = useState({});
         product_sku: "",
         unit: "kg",
         image: "",
-        gallery_images:[],
+        gallery_images: [],
         description: "",
     });
 
@@ -88,7 +72,9 @@ const [galleryUploadProgress, setGalleryUploadProgress] = useState({});
 
     // Handler to remove a specification
     const handleRemoveSpecification = (specToRemove) => {
-        setSpecifications(specifications.filter((spec) => spec !== specToRemove));
+        setSpecifications(
+            specifications.filter((spec) => spec !== specToRemove)
+        );
     };
 
     /* ================= FETCH CATEGORIES ================= */
@@ -109,12 +95,10 @@ const [galleryUploadProgress, setGalleryUploadProgress] = useState({});
 
     const fetchBrands = async () => {
         try {
-            // Replace with your actual API endpoint
             const { data } = await api.get("/admin/v1/brands");
             setBrands(data || []);
         } catch (err) {
             console.error("Failed to load brands", err);
-            // Fallback to mock data
             const mockBrands = [
                 { id: 1, name: "Nike" },
                 { id: 2, name: "Adidas" },
@@ -179,85 +163,113 @@ const [galleryUploadProgress, setGalleryUploadProgress] = useState({});
             handleAddTag();
         }
     };
-    // genarate sku code
-// Generate variations based on selected colors and attributes
-useEffect(() => {
-    // If no colors are selected, return early
-    if (selectedColors.length === 0) return;
-    
-    // Start with base color variations
-    let baseVariations = selectedColors.map((color, index) => ({
-        id: index + 1,
-        color: color.name,
-        colorClass: color.color,
-        code: "",
-        sku: `-${color.name}`,
-        stock: 1,
-    }));
-    
-    // If no attributes selected, set variations and return
-    if (selectedAttributes.length === 0) {
-        setVariations(baseVariations);
-        return;
-    }
-    
-    // Filter out attributes with values
-    const attributesWithValues = selectedAttributes.filter(
-        attr => attr.value && attr.value.length > 0
-    );
-    
-    // If no attributes have values, set base variations
-    if (attributesWithValues.length === 0) {
-        setVariations(baseVariations);
-        return;
-    }
-    
-    // Generate combinations of colors and attributes
-    let generatedVariations = [...baseVariations];
-    
-    attributesWithValues.forEach(attribute => {
-        const tempVariations = [];
-        
-        generatedVariations.forEach(variation => {
-            attribute.value.forEach(value => {
-                // Create new SKU by adding attribute value
-                const currentSkuParts = variation.sku.split('-').filter(Boolean);
-                const newSkuParts = [...currentSkuParts, value];
-                const newSku = `-${newSkuParts.join('-')}`;
-                
-                tempVariations.push({
-                    ...variation,
-                    id: 0, // Temporary ID, will be reassigned
-                    sku: newSku,
+
+    /* ================= VARIATION GENERATION - FIXED ================= */
+    const generateVariations = useCallback(() => {
+        // If no colors are selected, return empty
+        if (selectedColors.length === 0) {
+            setVariations([]);
+            return;
+        }
+
+        // Filter out attributes with values
+        const attributesWithValues = selectedAttributes.filter(
+            (attr) => attr.value && attr.value.length > 0
+        );
+
+        // Generate base variations from selected colors
+        let baseVariations = selectedColors.map((color, index) => ({
+            id: index + 1,
+            color: color.name,
+            colorClass: color.color,
+            code: "",
+            sku: `${formData.product_sku || "VAR"}-${color.name.replace(
+                /\s+/g,
+                "-"
+            )}`,
+            stock: 1,
+            price: parseFloat(formData.price) || 0,
+            colorId: color.id,
+        }));
+
+        // If no attributes with values, set base variations
+        if (attributesWithValues.length === 0) {
+            setVariations(baseVariations);
+            return;
+        }
+
+        // Generate all combinations of colors and attribute values
+        let allVariations = [];
+
+        // For each base variation (color), create combinations with attribute values
+        baseVariations.forEach((baseVar) => {
+            // Start with the base variation itself
+            let variationsForThisColor = [baseVar];
+
+            // For each attribute, create new variations
+            attributesWithValues.forEach((attr) => {
+                const newVariations = [];
+
+                variationsForThisColor.forEach((variation) => {
+                    attr.value.forEach((attrValue) => {
+                        // Create SKU: BaseSKU-AttributeValue (without starting dash)
+                        const attributePart = attrValue.replace(/\s+/g, "-");
+                        const newSku = `${
+                            variation.sku.split("-")[0]
+                        }-${variation.color.replace(
+                            /\s+/g,
+                            "-"
+                        )}-${attributePart}`;
+
+                        newVariations.push({
+                            ...variation,
+                            id: 0, // Temporary ID
+                            sku: newSku,
+                            attributes: {
+                                ...(variation.attributes || {}),
+                                [attr.name]: attrValue,
+                            },
+                        });
+                    });
                 });
+
+                variationsForThisColor = newVariations;
             });
+
+            allVariations.push(...variationsForThisColor);
         });
-        
+
         // Remove duplicates based on SKU
         const uniqueVariations = [];
         const seenSkus = new Set();
-        
-        tempVariations.forEach(variation => {
+
+        allVariations.forEach((variation) => {
             if (!seenSkus.has(variation.sku)) {
                 seenSkus.add(variation.sku);
                 uniqueVariations.push(variation);
             }
         });
-        
-        generatedVariations = uniqueVariations;
-    });
-    
-    // Assign proper IDs
-    const finalVariations = generatedVariations.map((variation, index) => ({
-        ...variation,
-        id: index + 1,
-    }));
-    
-    setVariations(finalVariations);
-}, [selectedColors, selectedAttributes]);
-    
-    
-    /* ================= Attribute HANDLERS ================= */
+
+        // Assign proper IDs and ensure price is set
+        const finalVariations = uniqueVariations.map((variation, index) => ({
+            ...variation,
+            id: index + 1,
+            price: variation.price || parseFloat(formData.price) || 0,
+        }));
+
+        setVariations(finalVariations);
+    }, [
+        selectedColors,
+        selectedAttributes,
+        formData.price,
+        formData.product_sku,
+    ]);
+
+    useEffect(() => {
+        generateVariations();
+    }, [generateVariations]);
+
+    /* ================= ATTRIBUTE HANDLERS ================= */
     const handleAttributeSelect = (e) => {
         const attributeId = parseInt(e.target.value, 10);
         if (!attributeId) return;
@@ -272,15 +284,7 @@ useEffect(() => {
             return;
         }
 
-        // Clean duplicate values inside the attribute
-        const cleanedAttribute = {
-            ...attribute,
-            value: [...new Set(attribute.value)],
-        };
-
-        setSelectedAttributes((prev) => [...prev, cleanedAttribute]);
-
-        // Reset select
+        setSelectedAttributes((prev) => [...prev, { ...attribute, value: [] }]);
         e.target.value = "";
     };
 
@@ -291,31 +295,35 @@ useEffect(() => {
             prev.map((attr) => {
                 if (attr.id !== attributeId) return attr;
 
-                //Prevent duplicate value
-                if (attr.value.includes(newValue)) {
+                // Prevent duplicate value
+                if (attr.value.includes(newValue.trim())) {
                     return attr;
                 }
 
                 return {
                     ...attr,
-                    value: [...attr.value, newValue],
+                    value: [...attr.value, newValue.trim()],
+                };
+            })
+        );
+    };
+
+    const removeAttributeValue = (attributeId, valueToRemove) => {
+        setSelectedAttributes((prev) =>
+            prev.map((attr) => {
+                if (attr.id !== attributeId) return attr;
+                return {
+                    ...attr,
+                    value: attr.value.filter((val) => val !== valueToRemove),
                 };
             })
         );
     };
 
     const handleRemoveAttribute = (attrId) => {
-        const attrToRemove = selectedAttributes.find((a) => a.id === attrId);
         setSelectedAttributes(
             selectedAttributes.filter((a) => a.id !== attrId)
         );
-
-        // Remove corresponding variation
-        // if (colorToRemove) {
-        //     setVariations(
-        //         variations.filter((v) => v.color !== colorToRemove.name)
-        //     );
-        // }
     };
 
     /* ================= COLOR HANDLERS ================= */
@@ -325,43 +333,34 @@ useEffect(() => {
 
         const color = availableColors.find((c) => c.id === colorId);
         if (color && !selectedColors.find((sc) => sc.id === colorId)) {
-            setSelectedColors([...selectedColors, color]);
-
-            // Add new variation for selected color
-            if (!variations.find((v) => v.color === color.name)) {
-                const newVariation = {
-                    id: variations.length + 1,
-                    color: color.name,
-                    colorClass: color.color,
-                    code: "",
-                    sku: `-${color.name}`,
-                    stock: 1,
-                };
-                setVariations([...variations, newVariation]);
-            }
-
-            e.target.value = ""; // Reset select
+            const newSelectedColors = [...selectedColors, color];
+            setSelectedColors(newSelectedColors);
+            e.target.value = "";
         }
     };
 
     const handleRemoveColor = (colorId) => {
         const colorToRemove = selectedColors.find((c) => c.id === colorId);
-        setSelectedColors(selectedColors.filter((c) => c.id !== colorId));
-
-        // Remove corresponding variation
         if (colorToRemove) {
-            setVariations(
-                variations.filter((v) => v.color !== colorToRemove.name)
+            const newSelectedColors = selectedColors.filter(
+                (c) => c.id !== colorId
             );
+            setSelectedColors(newSelectedColors);
         }
     };
 
     /* ================= VARIATION HANDLERS ================= */
     const handleVariationChange = (id, field, value) => {
-        setVariations(
-            variations.map((variation) =>
+        setVariations((prevVariations) =>
+            prevVariations.map((variation) =>
                 variation.id === id
-                    ? { ...variation, [field]: value }
+                    ? {
+                          ...variation,
+                          [field]:
+                              field === "price"
+                                  ? parseFloat(value) || 0
+                                  : value,
+                      }
                     : variation
             )
         );
@@ -372,22 +371,19 @@ useEffect(() => {
             variations.length > 0
                 ? Math.max(...variations.map((v) => v.id)) + 1
                 : 1;
-        const defaultColor = { id: 0, name: "New Color", color: "bg-gray-400" };
 
         const newVariation = {
             id: newId,
-            color: "New Color",
+            color: "Custom",
             colorClass: "bg-gray-400",
             code: "",
-            sku: `-NewColor${newId}`,
+            sku: `${formData.product_sku || "CUSTOM"}-${newId}`,
             stock: 1,
+            price: parseFloat(formData.price) || 0,
+            isCustom: true,
         };
 
         setVariations([...variations, newVariation]);
-
-        if (!selectedColors.find((c) => c.name === "New Color")) {
-            setSelectedColors([...selectedColors, defaultColor]);
-        }
     };
 
     /* ================= SKU GENERATION ================= */
@@ -397,6 +393,16 @@ useEffect(() => {
             .substr(2, 9)
             .toUpperCase()}`;
         setFormData({ ...formData, product_sku: randomSKU });
+
+        // Update variations SKUs with new base SKU
+        if (variations.length > 0) {
+            setVariations(
+                variations.map((v) => ({
+                    ...v,
+                    sku: v.sku.replace(/^[^-]+/, randomSKU.split("-")[0]),
+                }))
+            );
+        }
     };
 
     /* ================= IMAGE UPLOAD ================= */
@@ -414,11 +420,7 @@ useEffect(() => {
 
             setFormData({
                 ...formData,
-                // image: `${import.meta.env.VITE_API_BASE_URL}/storage/${
-                //     data.path
-                // }`,
                 image: data.path.split("/").pop(),
-             
             });
         } catch (err) {
             console.error("Image upload failed", err);
@@ -429,7 +431,6 @@ useEffect(() => {
     /* ================= COLOR IMAGE UPLOAD ================= */
     const handleColorImageUpload = async (colorId, file) => {
         if (!file) return;
-        // console.log("upload")
 
         const fd = new FormData();
         fd.append("image", file);
@@ -445,9 +446,6 @@ useEffect(() => {
                     color.id === colorId
                         ? {
                               ...color,
-                            //   image: `${
-                            //       import.meta.env.VITE_API_BASE_URL
-                            //   }/storage/${data.path}`,
                               image: data.path.split("/").pop(),
                           }
                         : color
@@ -460,383 +458,241 @@ useEffect(() => {
     };
 
     /* ================= GALLERY IMAGE UPLOAD ================= */
-const handleGalleryImageUpload = async (files) => {
-    if (!files || files.length === 0) return;
-    
-    setGalleryUploading(true);
-    const uploadedImages = [];
-    
-    // Create an array of promises for parallel upload
-    const uploadPromises = Array.from(files).map(async (file, index) => {
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            throw new Error(`File "${file.name}" is too large. Maximum size is 5MB.`);
-        }
-        
-        // Validate file type
-        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
-        if (!validTypes.includes(file.type)) {
-            throw new Error(`File "${file.name}" is not a valid image type.`);
-        }
-        
-        const fd = new FormData();
-        fd.append("image", file);
-        fd.append("folder", "products/gallery");
-        
-        try {
-            const { data } = await api.post("/admin/v1/upload", fd, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-            
-            // const imageUrl = `${import.meta.env.VITE_API_BASE_URL}/storage/${data.path}`;
-            const imageUrl = data.path.split("/").pop();
-            return { success: true, url: imageUrl, fileName: file.name };
-        } catch (err) {
-            console.error(`Failed to upload image: ${file.name}`, err);
-            return { success: false, fileName: file.name, error: err.message };
-        }
-    });
-    
-    try {
-        // Execute all uploads in parallel
-        const results = await Promise.all(uploadPromises);
-        
-        // Filter successful uploads
-        const successfulUploads = results.filter(result => result.success);
-        const failedUploads = results.filter(result => !result.success);
-        
-        // Add successful uploads to gallery
-        if (successfulUploads.length > 0) {
-            const newImageUrls = successfulUploads.map(result => result.url);
-            setFormData(prev => ({
-                ...prev,
-                gallery_images: [...prev.gallery_images, ...newImageUrls]
-            }));
-            
-            // Show success message
-            if (successfulUploads.length > 0) {
-                alert(`Successfully uploaded ${successfulUploads.length} image(s).`);
+    const handleGalleryImageUpload = async (files) => {
+        if (!files || files.length === 0) return;
+
+        setGalleryUploading(true);
+        const uploadedImages = [];
+
+        const uploadPromises = Array.from(files).map(async (file, index) => {
+            if (file.size > 5 * 1024 * 1024) {
+                throw new Error(
+                    `File "${file.name}" is too large. Maximum size is 5MB.`
+                );
             }
-        }
-        
-        // Show errors for failed uploads
-        if (failedUploads.length > 0) {
-            const errorMessages = failedUploads.map(result => 
-                `${result.fileName}: ${result.error}`
-            ).join('\n');
-            alert(`Failed to upload ${failedUploads.length} image(s):\n${errorMessages}`);
-        }
-        
-    } catch (error) {
-        console.error("Gallery upload failed:", error);
-        alert("Failed to upload gallery images. Please try again.");
-    } finally {
-        setGalleryUploading(false);
-        setGalleryUploadProgress({});
-    }
-};
 
-// Remove single gallery image
-const handleRemoveGalleryImage = (index) => {
-    setFormData(prev => ({
-        ...prev,
-        gallery_images: prev.gallery_images.filter((_, i) => i !== index)
-    }));
-};
+            const validTypes = [
+                "image/jpeg",
+                "image/png",
+                "image/gif",
+                "image/svg+xml",
+                "image/webp",
+            ];
+            if (!validTypes.includes(file.type)) {
+                throw new Error(
+                    `File "${file.name}" is not a valid image type.`
+                );
+            }
 
-// Clear all gallery images
-const handleClearAllGalleryImages = () => {
-    if (window.confirm("Are you sure you want to remove all gallery images?")) {
-        setFormData(prev => ({
+            const fd = new FormData();
+            fd.append("image", file);
+            fd.append("folder", "products/gallery");
+
+            try {
+                const { data } = await api.post("/admin/v1/upload", fd, {
+                    headers: { "Content-Type": "multipart/form-data" },
+                });
+
+                const imageUrl = data.path.split("/").pop();
+                return { success: true, url: imageUrl, fileName: file.name };
+            } catch (err) {
+                console.error(`Failed to upload image: ${file.name}`, err);
+                return {
+                    success: false,
+                    fileName: file.name,
+                    error: err.message,
+                };
+            }
+        });
+
+        try {
+            const results = await Promise.all(uploadPromises);
+            const successfulUploads = results.filter(
+                (result) => result.success
+            );
+            const failedUploads = results.filter((result) => !result.success);
+
+            if (successfulUploads.length > 0) {
+                const newImageUrls = successfulUploads.map(
+                    (result) => result.url
+                );
+                setFormData((prev) => ({
+                    ...prev,
+                    gallery_images: [...prev.gallery_images, ...newImageUrls],
+                }));
+
+                if (successfulUploads.length > 0) {
+                    alert(
+                        `Successfully uploaded ${successfulUploads.length} image(s).`
+                    );
+                }
+            }
+
+            if (failedUploads.length > 0) {
+                const errorMessages = failedUploads
+                    .map((result) => `${result.fileName}: ${result.error}`)
+                    .join("\n");
+                alert(
+                    `Failed to upload ${failedUploads.length} image(s):\n${errorMessages}`
+                );
+            }
+        } catch (error) {
+            console.error("Gallery upload failed:", error);
+            alert("Failed to upload gallery images. Please try again.");
+        } finally {
+            setGalleryUploading(false);
+        }
+    };
+
+    // Remove single gallery image
+    const handleRemoveGalleryImage = (index) => {
+        setFormData((prev) => ({
             ...prev,
-            gallery_images: []
+            gallery_images: prev.gallery_images.filter((_, i) => i !== index),
         }));
-    }
-};
+    };
 
-    /* ================= SUBMIT ================= */
-    // const handleSubmit = async (e) => {
-    //     e.preventDefault();
+    // Clear all gallery images
+    const handleClearAllGalleryImages = () => {
+        if (
+            window.confirm(
+                "Are you sure you want to remove all gallery images?"
+            )
+        ) {
+            setFormData((prev) => ({
+                ...prev,
+                gallery_images: [],
+            }));
+        }
+    };
 
-    //     // Calculate final price based on tax and discount
-    //     let finalPrice = parseFloat(formData.price) || 0;
-    //     if (formData.discount_type === "Flat") {
-    //         finalPrice -= parseFloat(formData.discount_amount) || 0;
-    //     } else if (formData.discount_type === "Percent") {
-    //         finalPrice -=
-    //             (finalPrice * (parseFloat(formData.discount_amount) || 0)) /
-    //             100;
-    //     }
-
-    //     try {
-    //         const productData = {
-    //             name: formData.name,
-    //             price: finalPrice,
-    //             purchase_price: parseFloat(formData.purchase_price) || 0,
-    //             unit_price: parseFloat(formData.unit_price) || 0,
-    //             min_order_qty: parseInt(formData.min_order_qty) || 1,
-    //             current_stock: parseInt(formData.current_stock) || 0,
-    //             discount_type: formData.discount_type,
-    //             discount_amount: parseFloat(formData.discount_amount) || 0,
-    //             tax_amount: parseFloat(formData.tax_amount) || 0,
-    //             tax_calculation: formData.tax_calculation,
-    //             shipping_cost: parseFloat(formData.shipping_cost) || 0,
-    //             shipping_multiply: shippingMultiply,
-    //             loyalty_point: parseFloat(formData.loyalty_point) || 0,
-    //             category_id:
-    //                 formData.sub_sub_category_id ||
-    //                 formData.sub_category_id ||
-    //                 formData.category_id,
-    //             brand: formData.brand,
-    //             product_type: formData.product_type,
-    //             product_sku: formData.product_sku,
-    //             unit: formData.unit,
-    //             tags: searchTags,
-    //             image: formData.image,
-    //             description: formData.description,
-    //             variations: variations,
-    //         };
-
-    //         console.log("Submitting product data:", productData);
-
-    //         await api.post("/admin/v1/products", productData);
-
-    //         alert("Product added successfully");
-
-    //         // Reset form
-    //         resetForm();
-    //     } catch (err) {
-    //         console.error("Product create failed", err);
-    //         alert("Failed to add product");
-    //     }
-    // };
-    // const handleSubmit = async (e) => {
-    //     e.preventDefault();
-    
-    //     // Calculate final price based on tax and discount
-    //     let finalPrice = parseFloat(formData.price) || 0;
-    //     if (formData.discount_type === "Flat") {
-    //         finalPrice -= parseFloat(formData.discount_amount) || 0;
-    //     } else if (formData.discount_type === "Percent") {
-    //         finalPrice -=
-    //             (finalPrice * (parseFloat(formData.discount_amount) || 0)) /
-    //             100;
-    //     }
-    
-    //     try {
-    //         // Build the complete payload
-    //         const productData = {
-    //             // Basic Information
-    //             name: formData.name,
-    //             description: formData.description,
-                
-    //             // Category Information
-    //             category_id: formData.sub_sub_category_id || formData.sub_category_id || formData.category_id,
-    //             brand: formData.brand,
-                
-    //             // Product Details
-    //             product_type: formData.product_type,
-    //             product_sku: formData.product_sku,
-    //             unit: formData.unit,
-                
-    //             // Pricing Information
-    //             price: finalPrice,
-    //             purchase_price: parseFloat(formData.purchase_price) || 0,
-    //             unit_price: parseFloat(formData.unit_price) || 0,
-                
-    //             // Stock Information
-    //             min_order_qty: parseInt(formData.min_order_qty) || 1,
-    //             current_stock: parseInt(formData.current_stock) || 0,
-                
-    //             // Discount Information
-    //             discount_type: formData.discount_type,
-    //             discount_amount: parseFloat(formData.discount_amount) || 0,
-                
-    //             // Tax Information
-    //             tax_amount: parseFloat(formData.tax_amount) || 0,
-    //             tax_calculation: formData.tax_calculation,
-                
-    //             // Shipping Information
-    //             shipping_cost: parseFloat(formData.shipping_cost) || 0,
-    //             shipping_multiply: shippingMultiply,
-                
-    //             // Loyalty Points
-    //             loyalty_point: parseFloat(formData.loyalty_point) || 0,
-                
-    //             // Image
-    //             image: formData.image,
-    //             gallery_images: formData.gallery_images || [],
-                
-    //             // Tags
-    //             tags: searchTags,
-                
-    //             // Variations
-    //             variations: variations.map(variation => ({
-    //                 id: variation.id,
-    //                 color: variation.color,
-    //                 colorClass: variation.colorClass,
-    //                 code: variation.code,
-    //                 sku: variation.sku,
-    //                 stock: variation.stock,
-    //                 // Include color image if available
-    //                 color_image: selectedColors.find(c => c.name === variation.color)?.image || null
-    //             })),
-                
-    //             // Attributes
-    //             attributes: selectedAttributes.map(attr => ({
-    //                 id: attr.id,
-    //                 name: attr.name,
-    //                 values: attr.value || []
-    //             })),
-                
-    //             // Color Information
-    //             colors: selectedColors.map(color => ({
-    //                 id: color.id,
-    //                 name: color.name,
-    //                 color_class: color.color,
-    //                 image: color.image || null
-    //             })),
-                
-    //             // Additional metadata
-
-                
-    //             // Status (you might want to add this)
-    //             status: "active", // or "draft", "pending", etc.
-                
-    //             // SEO Fields (optional - you can add these later)
-    //             // meta_title: "",
-    //             // meta_description: "",
-    //             // meta_keywords: "",
-                
-    //             // Additional options
-    //             is_featured: false,
-    //             is_trending: false,
-    //             is_discounted: formData.discount_type !== "None"
-    //         };
-    
-    //         console.log("Submitting product data:", productData);
-    //         // console.log("Full payload:", JSON.stringify(productData, null, 2));
-    
-    //         // Send to API
-    //         // await api.post("/admin/v1/products", productData);
-    //         console.log(productData);
-    
-    //         alert("Product added successfully");
-    
-    //         // Reset form
-    //         resetForm();
-    //     } catch (err) {
-    //         console.error("Product create failed", err);
-    //         console.error("Error details:", err.response?.data);
-    //         alert("Failed to add product: " + (err.response?.data?.message || err.message));
-    //     }
-    // };
+    /* ================= SUBMIT HANDLER ================= */
     const handleSubmit = async (e) => {
         e.preventDefault();
-    
+
         // Calculate final price based on tax and discount
         let finalPrice = parseFloat(formData.price) || 0;
         if (formData.discount_type === "Flat") {
             finalPrice -= parseFloat(formData.discount_amount) || 0;
         } else if (formData.discount_type === "Percent") {
             finalPrice -=
-                (finalPrice * (parseFloat(formData.discount_amount) || 0)) / 100;
+                (finalPrice * (parseFloat(formData.discount_amount) || 0)) /
+                100;
         }
-    
+
         try {
             // Build the complete payload
             const productData = {
                 // Basic Information
                 name: formData.name,
                 description: formData.description,
-    
+
                 // Category Information
-                category_id: formData.sub_sub_category_id || formData.sub_category_id || formData.category_id,
+                category_id:
+                    formData.sub_sub_category_id ||
+                    formData.sub_category_id ||
+                    formData.category_id,
                 brand: formData.brand,
+
                 // Specifications
                 specifications: specifications,
+
                 // Product Details
                 product_type: formData.product_type,
                 product_sku: formData.product_sku,
                 unit: formData.unit,
-    
+
                 // Pricing Information
                 price: finalPrice,
                 purchase_price: parseFloat(formData.purchase_price) || 0,
                 unit_price: parseFloat(formData.unit_price) || 0,
-    
+
                 // Stock Information
                 min_order_qty: parseInt(formData.min_order_qty) || 1,
                 current_stock: parseInt(formData.current_stock) || 0,
-    
+
                 // Discount Information
                 discount_type: formData.discount_type,
                 discount_amount: parseFloat(formData.discount_amount) || 0,
-    
+
                 // Tax Information
                 tax_amount: parseFloat(formData.tax_amount) || 0,
                 tax_calculation: formData.tax_calculation,
-    
+
                 // Shipping Information
                 shipping_cost: parseFloat(formData.shipping_cost) || 0,
                 shipping_multiply: shippingMultiply,
-    
+
                 // Loyalty Points
                 loyalty_point: parseFloat(formData.loyalty_point) || 0,
-    
+
                 // Image
                 image: formData.image,
                 gallery_images: formData.gallery_images || [],
-    
+
                 // Tags
                 tags: searchTags,
-    
+
                 // Variations
-                variations: variations.map(variation => ({
+                variations: variations.map((variation) => ({
                     id: variation.id,
                     color: variation.color,
                     colorClass: variation.colorClass,
                     code: variation.code,
                     sku: variation.sku,
-                    stock: variation.stock,
-                    color_image: selectedColors.find(c => c.name === variation.color)?.image || null
+                    stock: parseInt(variation.stock) || 1,
+                    price: parseFloat(variation.price) || finalPrice,
+                    color_image:
+                        selectedColors.find((c) => c.name === variation.color)
+                            ?.image || null,
+                    attributes: variation.attributes || {},
                 })),
-    
-                // Attributes (Updated format)
+
+                // Attributes (formatted as JSON string)
                 attributes: selectedAttributes.map(attr => ({
                     name: attr.name,
                     values: attr.value || []
                 })),
-    
+                // NEW WAY (associative object)
+                // attributes: selectedAttributes.reduce((acc, attr) => {
+                //     // This creates: {"Size": ["M", "L"], "Weight": ["1kg"]}
+                //     acc[attr.name] = attr.value || [];
+                //     return acc;
+                // }, {}),
+
                 // Colors
-                colors: selectedColors.map(color => ({
+                colors: selectedColors.map((color) => ({
                     id: color.id,
                     name: color.name,
                     color_class: color.color,
-                    image: color.image || null
+                    image: color.image || null,
                 })),
-    
+
                 // Additional metadata
                 status: "active",
                 is_featured: false,
                 is_trending: false,
-                is_discounted: formData.discount_type !== "None"
+                is_discounted: formData.discount_type !== "None",
             };
-    
+
             console.log("Submitting product data:", productData);
-    
+
             // Send to API
             await api.post("/admin/v1/products", productData);
-    
+
             alert("Product added successfully");
-    
+
             // Reset form
             resetForm();
         } catch (err) {
             console.error("Product create failed", err);
-            alert("Failed to add product: " + (err.response?.data?.message || err.message));
+            alert(
+                "Failed to add product: " +
+                    (err.response?.data?.message || err.message)
+            );
         }
     };
+
     const resetForm = () => {
         setFormData({
             name: "",
@@ -863,27 +719,12 @@ const handleClearAllGalleryImages = () => {
         });
         setSearchTags([]);
         setSelectedColors([]);
-        setVariations([
-            {
-                id: 1,
-                color: "Yellow",
-                colorClass: "bg-yellow-500",
-                code: "",
-                sku: "-Yellow",
-                stock: 1,
-            },
-            {
-                id: 2,
-                color: "WhiteSmoke",
-                colorClass: "bg-gray-300",
-                code: "",
-                sku: "-WhiteSmoke",
-                stock: 1,
-            },
-        ]);
+        setSelectedAttributes([]);
+        setVariations([]);
         setShippingMultiply(true);
         setSubCategories([]);
         setSubSubCategories([]);
+        setSpecifications([]);
     };
 
     const handleInputChange = (e) => {
@@ -892,15 +733,17 @@ const handleClearAllGalleryImages = () => {
             ...formData,
             [name]: value,
         });
-    };
-    const handleAttributeChange = (attrId, newValue) => {
-        setSelectedAttributes((prevAttributes) =>
-            prevAttributes.map((attr) =>
-                attr.id === attrId
-                    ? { ...attr, value: [...(attr.value || []), newValue] }
-                    : attr
-            )
-        );
+
+        // If price changes, update variations with new base price
+        if (name === "price" && variations.length > 0) {
+            const newPrice = parseFloat(value) || 0;
+            setVariations((prev) =>
+                prev.map((v) => ({
+                    ...v,
+                    price: v.price === 0 ? newPrice : v.price,
+                }))
+            );
+        }
     };
 
     return (
@@ -959,6 +802,24 @@ const handleClearAllGalleryImages = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Description */}
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-600">
+                                    Description
+                                </label>
+                                <textarea
+                                    rows="4"
+                                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                    name="description"
+                                    value={formData.description}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter product description"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Specifications Section */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <h2 className="text-lg font-semibold text-gray-700 mb-6">
@@ -975,7 +836,9 @@ const handleClearAllGalleryImages = () => {
                                         {spec}
                                         <button
                                             type="button"
-                                            onClick={() => handleRemoveSpecification(spec)}
+                                            onClick={() =>
+                                                handleRemoveSpecification(spec)
+                                            }
                                             className="text-green-700 hover:text-green-900 text-lg leading-none"
                                         >
                                             ×
@@ -989,14 +852,16 @@ const handleClearAllGalleryImages = () => {
                                 )}
                             </div>
 
-                            Input Field to Add Specifications
+                            {/* Input Field to Add Specifications */}
                             <div className="flex flex-col sm:flex-row gap-3">
                                 <input
                                     type="text"
                                     className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="Enter specification and press +"
                                     value={specInput}
-                                    onChange={(e) => setSpecInput(e.target.value)}
+                                    onChange={(e) =>
+                                        setSpecInput(e.target.value)
+                                    }
                                 />
                                 <button
                                     type="button"
@@ -1005,22 +870,6 @@ const handleClearAllGalleryImages = () => {
                                 >
                                     + Add Specification
                                 </button>
-                            </div>
-                        </div>
-                    </div>
-                            {/* Description */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-600">
-                                    Description
-                                </label>
-                                <textarea
-                                    rows="4"
-                                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                                    name="description"
-                                    value={formData.description}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter product description"
-                                />
                             </div>
                         </div>
                     </div>
@@ -1591,9 +1440,10 @@ const handleClearAllGalleryImages = () => {
                         </h1>
 
                         <div className="space-y-8">
-                            {/* Colors Selection */}
-                            <div className="space-y-4 grid grid-cols-2 gap-4">
-                                <div className="">
+                            {/* Colors and Attributes Selection */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Colors Selection */}
+                                <div className="space-y-4">
                                     <label className="block text-sm font-medium text-gray-600">
                                         Select Colors:
                                     </label>
@@ -1604,7 +1454,7 @@ const handleClearAllGalleryImages = () => {
                                             defaultValue=""
                                         >
                                             <option value="">
-                                                Select Attributes
+                                                Select Color
                                             </option>
                                             {availableColors.map((color) => (
                                                 <option
@@ -1672,10 +1522,11 @@ const handleClearAllGalleryImages = () => {
                                         ))}
                                     </div>
                                 </div>
-                                {/* Select attributes : */}
-                                <div>
+
+                                {/* Attributes Selection */}
+                                <div className="space-y-4">
                                     <label className="block text-sm font-medium text-gray-600">
-                                        Select attributes:
+                                        Select Attributes:
                                     </label>
                                     <div className="relative">
                                         <select
@@ -1714,14 +1565,13 @@ const handleClearAllGalleryImages = () => {
 
                                     {/* Selected Attribute Display */}
                                     <div className="flex flex-wrap gap-3 mt-4">
-                                    
                                         {selectedAttributes.map((attr) => (
                                             <div
                                                 key={attr.id}
                                                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg"
                                             >
                                                 <div
-                                                    className={`w-4 h-4 rounded-full`}
+                                                    className={`w-4 h-4 rounded-full bg-blue-200`}
                                                 ></div>
                                                 <span className="font-medium text-gray-800">
                                                     {attr.name}
@@ -1753,116 +1603,91 @@ const handleClearAllGalleryImages = () => {
                                         ))}
                                     </div>
                                 </div>
-                                {/*  */}
                             </div>
-                            {/* Attribute input field */}
-                            {/* <div className="grid grid-cols-3 gap-4">
-                                {selectedAttributes.map((data) => (
-                                    <div className="space-y-2" key={data.id}>
-                                        <label className="block text-sm font-medium text-gray-600">
-                                            {data.name}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                            name={data.name}
-                                            value={data.value}
-                                            onChange={handleAttributeChange}
-                                            placeholder={data.name}
-                                            required
-                                        />
-                                    </div>
-                                ))}
-                            </div> */}
-                            {/* Attribute input fields */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-                                {selectedAttributes.map((attr) => (
-                                    <div className="space-y-2" key={attr.id}>
-                                        <label className="block text-sm font-medium text-gray-600">
-                                            {attr.name}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg
-             focus:outline-none focus:ring-2 focus:ring-blue-500
-             focus:border-blue-500"
-                                            placeholder={`Enter ${attr.name.toLowerCase()}`}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.preventDefault();
 
+                            {/* Attribute input fields */}
+                            {selectedAttributes.length > 0 && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                                    {selectedAttributes.map((attr) => (
+                                        <div
+                                            className="space-y-2"
+                                            key={attr.id}
+                                        >
+                                            <label className="block text-sm font-medium text-gray-600">
+                                                {attr.name}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                placeholder={`Enter ${attr.name.toLowerCase()}`}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+                                                        const value =
+                                                            e.target.value.trim();
+                                                        if (!value) return;
+                                                        addAttributeValue(
+                                                            attr.id,
+                                                            value
+                                                        );
+                                                        e.target.value = "";
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
                                                     const value =
                                                         e.target.value.trim();
                                                     if (!value) return;
-
-                                                    // ✅ call the correct function
                                                     addAttributeValue(
                                                         attr.id,
                                                         value
                                                     );
-
-                                                    // clear input
                                                     e.target.value = "";
-                                                }
-                                            }}
-                                        />
+                                                }}
+                                            />
 
-                                        {/* Display entered values */}
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            {attr.value?.map((val, index) => (
-                                                <span
-                                                    key={index}
-                                                    className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm"
-                                                >
-                                                    {val}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setSelectedAttributes(
-                                                                (
-                                                                    prevAttributes
-                                                                ) =>
-                                                                    prevAttributes.map(
-                                                                        (a) =>
-                                                                            a.id ===
-                                                                            attr.id
-                                                                                ? {
-                                                                                      ...a,
-                                                                                      value: a.value.filter(
-                                                                                          (
-                                                                                              v
-                                                                                          ) =>
-                                                                                              v !==
-                                                                                              val
-                                                                                      ),
-                                                                                  }
-                                                                                : a
+                                            {/* Display entered values */}
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {attr.value?.map(
+                                                    (val, index) => (
+                                                        <span
+                                                            key={index}
+                                                            className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm"
+                                                        >
+                                                            {val}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    removeAttributeValue(
+                                                                        attr.id,
+                                                                        val
                                                                     )
-                                                            )
-                                                        }
-                                                        className="text-gray-500 hover:text-gray-700"
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </span>
-                                            ))}
+                                                                }
+                                                                className="text-blue-700 hover:text-blue-900"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </span>
+                                                    )
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {selectedAttributes.length === 0 && (
-                                <div className="text-center py-6 text-gray-500 italic">
-                                    No attributes selected yet
+                                    ))}
                                 </div>
                             )}
+
                             {/* Divider */}
                             <div className="border-t border-gray-200"></div>
-                            {/* Attributes Section */}
+
+                            {/* Variations Table */}
                             <div>
-                                <h2 className="text-lg font-semibold text-gray-700 mb-6">
-                                    Select Attributes:
-                                </h2>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-lg font-semibold text-gray-700">
+                                        Generated Variations:
+                                    </h2>
+                                    <span className="text-sm text-gray-500">
+                                        {variations.length} variation(s)
+                                    </span>
+                                </div>
 
                                 {variations.length > 0 ? (
                                     <>
@@ -1873,9 +1698,9 @@ const handleClearAllGalleryImages = () => {
                                                     SL
                                                 </span>
                                             </div>
-                                            <div className="col-span-5">
+                                            <div className="col-span-4">
                                                 <span className="text-sm font-medium text-gray-600">
-                                                    Attribute Variation
+                                                    Variation Details
                                                 </span>
                                             </div>
                                             <div className="col-span-3">
@@ -1883,9 +1708,14 @@ const handleClearAllGalleryImages = () => {
                                                     SKU
                                                 </span>
                                             </div>
-                                            <div className="col-span-3">
+                                            <div className="col-span-2">
                                                 <span className="text-sm font-medium text-gray-600">
-                                                    Variation Wise Stock
+                                                    Stock
+                                                </span>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <span className="text-sm font-medium text-gray-600">
+                                                    Price (৳)
                                                 </span>
                                             </div>
                                         </div>
@@ -1894,45 +1724,55 @@ const handleClearAllGalleryImages = () => {
                                         {variations.map((variation, index) => (
                                             <div
                                                 key={variation.id}
-                                                className="grid grid-cols-12 gap-4 mb-4 p-4 bg-gray-50 rounded-lg"
+                                                className="grid grid-cols-12 gap-4 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
                                             >
                                                 <div className="col-span-1 flex items-center">
                                                     <span className="font-medium text-gray-700">
                                                         {index + 1}.
                                                     </span>
                                                 </div>
-                                                <div className="col-span-5">
+                                                <div className="col-span-4">
                                                     <div className="flex items-center gap-3">
                                                         <div
-                                                            className={`w-6 h-6 ${variation.colorClass} rounded-full`}
+                                                            className={`w-6 h-6 ${variation.colorClass} rounded-full border border-gray-300`}
                                                         ></div>
                                                         <div>
-                                                            <span className="font-medium text-gray-800">
+                                                            <span className="font-medium text-gray-800 block">
                                                                 {
                                                                     variation.color
                                                                 }
                                                             </span>
-                                                            <div className="mt-1">
-                                                                <input
-                                                                    type="text"
-                                                                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                                                    placeholder="Ex: 535"
-                                                                    value={
-                                                                        variation.code
-                                                                    }
-                                                                    onChange={(
-                                                                        e
-                                                                    ) =>
-                                                                        handleVariationChange(
-                                                                            variation.id,
-                                                                            "code",
-                                                                            e
-                                                                                .target
-                                                                                .value
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </div>
+                                                            {variation.attributes &&
+                                                                Object.keys(
+                                                                    variation.attributes
+                                                                ).length >
+                                                                    0 && (
+                                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                                        {Object.entries(
+                                                                            variation.attributes
+                                                                        ).map(
+                                                                            ([
+                                                                                key,
+                                                                                value,
+                                                                            ]) => (
+                                                                                <span
+                                                                                    key={
+                                                                                        key
+                                                                                    }
+                                                                                    className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
+                                                                                >
+                                                                                    {
+                                                                                        key
+                                                                                    }
+                                                                                    :{" "}
+                                                                                    {
+                                                                                        value
+                                                                                    }
+                                                                                </span>
+                                                                            )
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1950,7 +1790,7 @@ const handleClearAllGalleryImages = () => {
                                                         }
                                                     />
                                                 </div>
-                                                <div className="col-span-3">
+                                                <div className="col-span-2">
                                                     <input
                                                         type="number"
                                                         min="0"
@@ -1968,13 +1808,49 @@ const handleClearAllGalleryImages = () => {
                                                         }
                                                     />
                                                 </div>
+                                                <div className="col-span-2">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        placeholder="Price"
+                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                                        value={
+                                                            variation.price ||
+                                                            ""
+                                                        }
+                                                        onChange={(e) =>
+                                                            handleVariationChange(
+                                                                variation.id,
+                                                                "price",
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
                                             </div>
                                         ))}
                                     </>
                                 ) : (
-                                    <div className="text-center py-8 text-gray-500">
-                                        No variations added yet. Select colors
-                                        above to add variations.
+                                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+                                        <svg
+                                            className="w-16 h-16 mx-auto text-gray-300 mb-3"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth="2"
+                                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            />
+                                        </svg>
+                                        <p>No variations generated yet.</p>
+                                        <p className="text-sm mt-1">
+                                            Select colors and attributes above
+                                            to generate variations.
+                                        </p>
                                     </div>
                                 )}
 
@@ -1983,7 +1859,7 @@ const handleClearAllGalleryImages = () => {
                                     <button
                                         type="button"
                                         onClick={handleAddVariation}
-                                        className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-800 font-medium"
+                                        className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-800 font-medium border border-blue-200 rounded-lg hover:bg-blue-50"
                                     >
                                         <svg
                                             className="w-5 h-5"
@@ -1998,7 +1874,7 @@ const handleClearAllGalleryImages = () => {
                                                 d="M12 4v16m8-8H4"
                                             />
                                         </svg>
-                                        Add More Variations
+                                        Add Custom Variation
                                     </button>
                                 </div>
                             </div>
@@ -2020,7 +1896,12 @@ const handleClearAllGalleryImages = () => {
                                     </label>
                                     <div className="border border-gray-300 rounded-lg p-4">
                                         <img
-                                            src={`${import.meta.env.VITE_API_BASE_URL}/storage/products/${formData.image}`}
+                                            src={`${
+                                                import.meta.env
+                                                    .VITE_API_BASE_URL
+                                            }/storage/products/${
+                                                formData.image
+                                            }`}
                                             alt="preview"
                                             className="w-full max-w-md h-48 object-cover rounded-lg mx-auto"
                                         />
@@ -2082,214 +1963,203 @@ const handleClearAllGalleryImages = () => {
                                     className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="https://example.com/image.jpg"
                                     name="image"
-                                    value={`${import.meta.env.VITE_API_BASE_URL}/storage/products/${formData.image}`}
-                                    onChange={handleInputChange}
+                                    value={
+                                        formData.image
+                                            ? `${
+                                                  import.meta.env
+                                                      .VITE_API_BASE_URL
+                                              }/storage/products/${
+                                                  formData.image
+                                              }`
+                                            : ""
+                                    }
+                                    onChange={(e) => {
+                                        const url = e.target.value;
+                                        const filename = url.split("/").pop();
+                                        setFormData({
+                                            ...formData,
+                                            image: filename,
+                                        });
+                                    }}
                                 />
                             </div>
                         </div>
                     </div>
-{/* Image Gallery Section */}
-{/* Image Gallery Section */}
-<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-    <h2 className="text-lg font-semibold text-gray-700 mb-6">
-        Image Gallery
-    </h2>
 
-    <div className="space-y-6">
-        {/* Uploaded Images Preview */}
-        {(formData.gallery_images ?? []).length > 0 ? (
-            <div>
-                <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-gray-600">
-                        Gallery Images ({formData.gallery_images.length})
-                    </label>
-                    <button
-                        type="button"
-                        onClick={handleClearAllGalleryImages}
-                        className="text-sm text-red-600 hover:text-red-800 font-medium"
-                    >
-                        Clear All
-                    </button>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {formData.gallery_images.map((image, index) => (
-                        <div key={index} className="relative group">
-                            <div className="aspect-square overflow-hidden rounded-lg border border-gray-300 bg-gray-100">
-                                <img
-                                    src={`${import.meta.env.VITE_API_BASE_URL}/storage/products/gallery/${image}`}
-                                    alt={`Gallery Image ${index + 1}`}
-                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                                    // onError={(e) => {
-                                    //     e.target.src = 'https://via.placeholder.com/150?text=Image+Error';
-                                    // }}
-                                />
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => handleRemoveGalleryImage(index)}
-                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                                title="Remove image"
-                            >
-                                <svg
-                                    className="w-4 h-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
+                    {/* Image Gallery Section */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <h2 className="text-lg font-semibold text-gray-700 mb-6">
+                            Image Gallery
+                        </h2>
+
+                        <div className="space-y-6">
+                            {/* Uploaded Images Preview */}
+                            {(formData.gallery_images ?? []).length > 0 ? (
+                                <div>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <label className="block text-sm font-medium text-gray-600">
+                                            Gallery Images (
+                                            {formData.gallery_images.length})
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={
+                                                handleClearAllGalleryImages
+                                            }
+                                            className="text-sm text-red-600 hover:text-red-800 font-medium"
+                                        >
+                                            Clear All
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                        {formData.gallery_images.map(
+                                            (image, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="relative group"
+                                                >
+                                                    <div className="aspect-square overflow-hidden rounded-lg border border-gray-300 bg-gray-100">
+                                                        <img
+                                                            src={`${
+                                                                import.meta.env
+                                                                    .VITE_API_BASE_URL
+                                                            }/storage/products/gallery/${image}`}
+                                                            alt={`Gallery Image ${
+                                                                index + 1
+                                                            }`}
+                                                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleRemoveGalleryImage(
+                                                                index
+                                                            )
+                                                        }
+                                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                        title="Remove image"
+                                                    >
+                                                        <svg
+                                                            className="w-4 h-4"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth="2"
+                                                                d="M6 18L18 6M6 6l12 12"
+                                                            />
+                                                        </svg>
+                                                    </button>
+                                                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs p-1 text-center truncate">
+                                                        Image {index + 1}
+                                                    </div>
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                                    <svg
+                                        className="w-16 h-16 text-gray-400 mx-auto mb-3"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                    <p className="text-gray-500">
+                                        No gallery images uploaded yet
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* File Upload Section */}
+                            <div className="space-y-4">
+                                <label className="block text-sm font-medium text-gray-600">
+                                    Upload Multiple Images
+                                </label>
+
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        onChange={(e) => {
+                                            const files = e.target.files;
+                                            if (files && files.length > 0) {
+                                                handleGalleryImageUpload(files);
+                                            }
+                                            e.target.value = "";
+                                        }}
+                                        className="hidden"
+                                        id="gallery-upload"
+                                        disabled={galleryUploading}
                                     />
-                                </svg>
-                            </button>
-                            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs p-1 text-center truncate">
-                                Image {index + 1}
+                                    <label
+                                        htmlFor="gallery-upload"
+                                        className={`cursor-pointer ${
+                                            galleryUploading
+                                                ? "opacity-50 cursor-not-allowed"
+                                                : ""
+                                        }`}
+                                    >
+                                        <div className="flex flex-col items-center">
+                                            {galleryUploading ? (
+                                                <>
+                                                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                                    <span className="text-gray-600 font-medium">
+                                                        Uploading Images...
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg
+                                                        className="w-12 h-12 text-gray-400 mb-3"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth="2"
+                                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                                                        />
+                                                    </svg>
+                                                    <span className="text-gray-600 font-medium">
+                                                        Click to upload or drag
+                                                        and drop
+                                                    </span>
+                                                    <span className="text-gray-500 text-sm mt-1">
+                                                        PNG, JPG, GIF, SVG, WEBP
+                                                        (max. 5MB each)
+                                                    </span>
+                                                    <span className="text-blue-500 text-sm mt-2 font-medium">
+                                                        Select multiple files
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </label>
+
+                                    <p className="text-xs text-gray-400 mt-4">
+                                        You can select multiple images at once
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    ))}
-                </div>
-            </div>
-        ) : (
-            <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                <svg
-                    className="w-16 h-16 text-gray-400 mx-auto mb-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                </svg>
-                <p className="text-gray-500">No gallery images uploaded yet</p>
-            </div>
-        )}
-
-        {/* File Upload Section */}
-        <div className="space-y-4">
-            <label className="block text-sm font-medium text-gray-600">
-                Upload Multiple Images
-            </label>
-            
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => {
-                        const files = e.target.files;
-                        if (files && files.length > 0) {
-                            handleGalleryImageUpload(files);
-                        }
-                        e.target.value = ''; // Reset input
-                    }}
-                    className="hidden"
-                    id="gallery-upload"
-                    disabled={galleryUploading}
-                />
-                <label
-                    htmlFor="gallery-upload"
-                    className={`cursor-pointer ${galleryUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                    <div className="flex flex-col items-center">
-                        {galleryUploading ? (
-                            <>
-                                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-                                <span className="text-gray-600 font-medium">
-                                    Uploading Images...
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                <svg
-                                    className="w-12 h-12 text-gray-400 mb-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                                    />
-                                </svg>
-                                <span className="text-gray-600 font-medium">
-                                    Click to upload or drag and drop
-                                </span>
-                                <span className="text-gray-500 text-sm mt-1">
-                                    PNG, JPG, GIF, SVG, WEBP (max. 5MB each)
-                                </span>
-                                <span className="text-blue-500 text-sm mt-2 font-medium">
-                                    Select multiple files
-                                </span>
-                            </>
-                        )}
                     </div>
-                </label>
-                
-                {/* Drag and drop hint */}
-                <p className="text-xs text-gray-400 mt-4">
-                    You can select multiple images at once
-                </p>
-            </div>
-        </div>
 
-        {/* Image URL Input (Alternative) */}
-        <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-600">
-                Or add image URLs (one per line)
-            </label>
-            <div className="relative">
-                <textarea
-                    rows="3"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                    placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg&#10;https://example.com/image3.jpg"
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && e.ctrlKey) {
-                            const textarea = e.target;
-                            const urls = textarea.value
-                                .split('\n')
-                                .map(url => url.trim())
-                                .filter(url => url !== '' && url.startsWith('http'));
-                            
-                            // Filter out duplicates
-                            const existingUrls = formData.gallery_images;
-                            const newUrls = urls.filter(url => !existingUrls.includes(url));
-                            
-                            if (newUrls.length > 0) {
-                                setFormData(prev => ({
-                                    ...prev,
-                                    gallery_images: [...prev.gallery_images, ...newUrls]
-                                }));
-                                alert(`Added ${newUrls.length} new image URL(s)`);
-                                textarea.value = '';
-                            } else if (urls.length > 0) {
-                                alert('All URLs are already added to gallery');
-                            }
-                        }
-                    }}
-                />
-                <div className="absolute bottom-2 right-2">
-                    <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
-                        Ctrl + Enter to add
-                    </span>
-                </div>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Enter one URL per line. Press Ctrl+Enter to add them.</span>
-            </div>
-        </div>
-    </div>
-</div>
                     {/* Color-wise Image Upload Section */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <h2 className="text-lg font-semibold text-gray-700 mb-6">
@@ -2316,7 +2186,12 @@ const handleClearAllGalleryImages = () => {
                                         />
                                         {color.image && (
                                             <img
-                                                src={`${import.meta.env.VITE_API_BASE_URL}/storage/products/${color.image}`}
+                                                src={`${
+                                                    import.meta.env
+                                                        .VITE_API_BASE_URL
+                                                }/storage/products/${
+                                                    color.image
+                                                }`}
                                                 alt={`${color.name} preview`}
                                                 className="w-16 h-16 object-cover rounded-lg border border-gray-300"
                                             />
@@ -2381,9 +2256,6 @@ const handleClearAllGalleryImages = () => {
                             </div>
                         </div>
                     </div>
-
-                    {/* Specifications Section */}
-
 
                     {/* Submit Button */}
                     <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">

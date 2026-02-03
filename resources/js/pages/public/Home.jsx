@@ -1,57 +1,53 @@
+
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Star, ShoppingBag, ChevronRight, Truck, Ship, Clock } from 'lucide-react';
+import { ChevronRight, Star, TrendingUp, Truck, ShieldCheck, Clock, Layers } from 'lucide-react';
+import ProductModal from '../common/ProductModal';
 import api from '../../services/api';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
+// import ProductCard from '../common/ProductCard';
+import { parseGalleryImages } from '../utils/parseGalleryImages';
 
 const Home = () => {
     const [categories, setCategories] = useState([]);
     const [banners, setBanners] = useState([]);
-    const [sectionProducts, setSectionProducts] = useState({});
+    const [categorySections, setCategorySections] = useState([]);
+    const [newArrivals, setNewArrivals] = useState([]);
     const [recommendedProducts, setRecommendedProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Categories we want to showcase specifically on the home page sections
-    const targetCategories = ['Shoes', 'Bags', 'Jewelry', 'Watches', 'Sunglasses'];
+    const handleProductClick = (product) => {
+        setSelectedProduct(product);
+        setIsModalOpen(true);
+    };
 
     useEffect(() => {
         const fetchHomeData = async () => {
             setLoading(true);
             try {
-                // 1. Fetch Categories and Banners
-                const [catRes, bannerRes] = await Promise.all([
+                // 1. Fetch Basic Data (Categories, Banners)
+                // 2. Fetch Category Sections (Categories with Products)
+                // 3. Fetch New Arrivals (New Section)
+                // 4. Fetch Recommended
+
+                const [catRes, bannerRes, catSectionsRes, newArrivalsRes, recommendedRes] = await Promise.allSettled([
                     api.get('/categories'),
-                    api.get('/banners')
+                    api.get('/banners'),
+                    api.get('/v1/categories-with-products'),
+                    api.get('/v1/items-sections?type=newarrival&limit=12'),
+                    api.get('/v1/recommended-products')
                 ]);
 
-                // Handle both res.data and res.data.data patterns
-                const allCats = catRes.data?.data || catRes.data || [];
-                const allBanners = bannerRes.data?.data || bannerRes.data || [];
-                
-                setCategories(allCats);
-                setBanners(allBanners);
+                // Helper to get data or empty array
+                const getData = (res) => (res.status === 'fulfilled' ? (res.value?.data?.data || res.value?.data || []) : []);
 
-                // 2. Fetch Products for sections
-                const prodRes = await api.get('/products');
-                const allProducts = prodRes.data?.data || prodRes.data || [];
-
-                const newSectionProducts = {};
-                
-                targetCategories.forEach(targetName => {
-                    // Try to find products where category name matches targetName
-                    const filtered = allProducts.filter(p => 
-                        p.category?.name?.toLowerCase().includes(targetName.toLowerCase()) ||
-                        p.name?.toLowerCase().includes(targetName.toLowerCase())
-                    );
-                    
-                    // Take top 6 for the section; if empty, leave as empty array
-                    newSectionProducts[targetName] = filtered.slice(0, 6);
-                });
-
-                setSectionProducts(newSectionProducts);
-                
-                // 3. Set Recommended (Randomize or just take top slice)
-                setRecommendedProducts(allProducts.slice(0, 18));
+                setCategories(getData(catRes));
+                setBanners(getData(bannerRes));
+                setCategorySections(getData(catSectionsRes));
+                setNewArrivals(getData(newArrivalsRes)?.results?.products || []);
+                setRecommendedProducts(getData(recommendedRes)?.products || []);
 
             } catch (error) {
                 console.error("Failed to fetch home data:", error);
@@ -82,7 +78,7 @@ const Home = () => {
                                 ) : (
                                     categories.slice(0, 12).map(cat => (
                                         <li key={cat.id}>
-                                            <Link to={`/products?category=${cat.slug || cat.id}`} className="block px-4 py-2 text-sm text-gray-600 hover:bg-primary/5 hover:text-primary border-b border-gray-50 flex items-center justify-between group">
+                                            <Link to={`/ products ? category = ${cat.slug || cat.id} `} className="block px-4 py-2 text-sm text-gray-600 hover:bg-primary/5 hover:text-primary border-b border-gray-50 flex items-center justify-between group">
                                                 {cat.name}
                                                 <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                             </Link>
@@ -111,14 +107,42 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* Product Sections based on Target Categories */}
-            {targetCategories.map(catName => (
+            {/* New Arrivals Section (NEW) */}
+            <section className="py-8 bg-white mb-4">
+                <div className="container mx-auto px-4">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            <span className="w-1 h-6 bg-green-500 rounded-full"></span>
+                            New Arrivals
+                        </h2>
+                        <Link to="/products?sort_by=newest" className="text-sm font-semibold text-gray-500 hover:text-primary flex items-center gap-1 transition">
+                            View All <ChevronRight size={16} />
+                        </Link>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        {loading ? (
+                            Array(6).fill(0).map((_, i) => <ProductSkeleton key={i} />)
+                        ) : newArrivals.length > 0 ? (
+                            newArrivals.map(product => <ProductCard key={product.id} product={product} onClick={() => handleProductClick(product)} />)
+                        ) : (
+                            <div className="col-span-full py-8 text-center text-gray-400 bg-gray-50 rounded-lg">
+                                No new arrivals yet.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </section>
+
+            {/* Dynamic Category Sections */}
+            {categorySections.map((section, index) => (
                 <CategorySection
-                    key={catName}
-                    title={catName}
-                    categorySlug={catName.toLowerCase()}
-                    products={sectionProducts[catName] || []}
+                    key={section.category.id || index}
+                    title={section.category.name}
+                    categorySlug={section.category.slug || section.category.id}
+                    products={section.products || []}
                     loading={loading}
+                    onProductClick={handleProductClick}
                 />
             ))}
 
@@ -137,7 +161,7 @@ const Home = () => {
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                         {loading
                             ? Array(12).fill(0).map((_, i) => <ProductSkeleton key={i} />)
-                            : recommendedProducts.map(product => <ProductCard key={product.id} product={product} />)
+                            : recommendedProducts.map(product => <ProductCard key={product.id} product={product} onClick={() => handleProductClick(product)} />)
                         }
                     </div>
 
@@ -150,11 +174,22 @@ const Home = () => {
                     )}
                 </div>
             </section>
+
+            {/* Product Modal */}
+            {isModalOpen && (
+                <ProductModal
+                    product={selectedProduct}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setSelectedProduct(null);
+                    }}
+                />
+            )}
         </div>
     );
 };
 
-const CategorySection = ({ title, categorySlug, products, loading }) => (
+const CategorySection = ({ title, categorySlug, products, loading, onProductClick }) => (
     <section className="py-8 border-b border-gray-100 bg-white mb-4">
         <div className="container mx-auto px-4">
             <div className="flex items-center justify-between mb-6">
@@ -162,16 +197,14 @@ const CategorySection = ({ title, categorySlug, products, loading }) => (
                     <span className="bg-primary/10 text-primary p-1.5 rounded-lg"><Star size={20} className="fill-primary" /></span>
                     {title}
                 </h3>
-                <Link to={`/products?search=${categorySlug}`} className="text-sm font-semibold text-gray-500 hover:text-primary flex items-center gap-1 transition">
+                <Link to={`/ products ? category = ${categorySlug} `} className="text-sm font-semibold text-gray-500 hover:text-primary flex items-center gap-1 transition">
                     View All <ChevronRight size={16} />
                 </Link>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {loading ? (
-                    Array(6).fill(0).map((_, i) => <ProductSkeleton key={i} />)
-                ) : products.length > 0 ? (
-                    products.map(product => <ProductCard key={product.id} product={product} />)
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 border-t border-gray-50 pt-4">
+                {products.length > 0 ? (
+                    products.slice(0, 6).map(product => <ProductCard key={product.id} product={product} onClick={() => onProductClick(product)} />)
                 ) : (
                     <div className="col-span-full py-8 text-center text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">
                         No products found in {title}
@@ -182,24 +215,64 @@ const CategorySection = ({ title, categorySlug, products, loading }) => (
     </section>
 );
 
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, onClick }) => {
+    console.log(product);
     // Handling different image key names (image, thumbnail, or images array)
-    const displayImage = product.images?.[0] || product.image || product.thumbnail;
+    // Safe check if images is array
+
+    let displayImage = null;
+
+    // 1. Try simple string properties first
+    if (typeof product.image === 'string') {
+        displayImage = product.image;
+    } else if (typeof product.thumbnail === 'string') {
+        displayImage = product.thumbnail;
+    }
+
+    // 2. Try images array (ProductResource format)
+    if (!displayImage && Array.isArray(product.images) && product.images.length > 0) {
+        const firstImg = product.images[0];
+        if (typeof firstImg === 'string') {
+            displayImage = firstImg;
+        } else if (typeof firstImg === 'object' && firstImg?.image) {
+            displayImage = firstImg.image;
+        }
+    }
+
+    // 3. Try parsing gallery_images (legacy/raw format)
+    if (!displayImage) {
+        const gallery = parseGalleryImages(product.gallery_images);
+        if (gallery.length > 0) displayImage = gallery[0];
+    }
+
+    // 4. Object fallback (safeguard)
+    if (typeof displayImage === 'object' && displayImage?.image) {
+        displayImage = displayImage.image;
+    }
+
+    const finalImage = (displayImage && typeof displayImage === 'string' && displayImage.startsWith('http'))
+        ? displayImage
+        : displayImage
+            ? `${import.meta.env.VITE_API_BASE_URL || ''} /storage/${displayImage.replace(/^\/?storage\//, '')} `
+            : 'https://placehold.co/400x400?text=No+Image';
+
+    // Fix price parsing
     const basePrice = parseFloat(product.base_price || product.price || 0);
     const salePrice = product.sale_price ? parseFloat(product.sale_price) : null;
+    const hasDiscount = salePrice && salePrice > 0 && salePrice < basePrice;
 
     return (
-        <Link to={`/products/${product.id}`} className="group bg-white rounded-xl border border-gray-100 hover:border-primary/30 hover:shadow-lg transition duration-300 overflow-hidden flex flex-col h-full relative">
+        <div onClick={onClick} className="group bg-white rounded-xl border border-gray-100 hover:border-primary/30 hover:shadow-lg transition duration-300 overflow-hidden flex flex-col h-full relative cursor-pointer">
             <div className="aspect-square bg-gray-100 relative overflow-hidden">
                 {displayImage ? (
-                    <img src={displayImage} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
+                    <img src={finalImage} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" onError={(e) => e.target.src = 'https://placehold.co/400x400?text=No+Image'} />
                 ) : (
                     <div className="w-full h-full bg-gray-50 flex items-center justify-center text-gray-300 text-xs font-medium">
                         No Image
                     </div>
                 )}
 
-                {salePrice && salePrice < basePrice && (
+                {hasDiscount && (
                     <div className="absolute top-2 left-2 bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
                         -{Math.round(((basePrice - salePrice) / basePrice) * 100)}%
                     </div>
@@ -212,21 +285,23 @@ const ProductCard = ({ product }) => {
                 </h4>
                 <div className="mt-auto pt-2">
                     <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-lg font-bold text-primary">৳{salePrice || basePrice}</span>
-                        {salePrice && salePrice < basePrice && (
+                        <span className="text-lg font-bold text-primary">৳{hasDiscount ? salePrice : basePrice}</span>
+                        {hasDiscount && (
                             <span className="text-xs text-gray-400 line-through">৳{basePrice}</span>
                         )}
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-gray-500">
-                        <span>{product.sold_count || '10+'} sold</span>
-                        <div className="flex items-center gap-0.5 text-yellow-500">
-                            <Star size={10} className="fill-yellow-500" />
-                            <span>{product.rating || '4.8'}</span>
-                        </div>
+                        <span>{product.sold_count || '0'} sold</span>
+                        {product.rating > 0 && (
+                            <div className="flex items-center gap-0.5 text-yellow-500">
+                                <Star size={10} className="fill-yellow-500" />
+                                <span>{product.rating || '0.0'}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
-        </Link>
+        </div>
     );
 };
 
@@ -257,12 +332,12 @@ const CategoryCarousel = ({ categories }) => {
             {categories.map(cat => (
                 <Link
                     key={cat.id}
-                    to={`/products?category=${cat.slug || cat.id}`}
+                    to={`/ products ? category = ${cat.slug || cat.id} `}
                     className="flex-shrink-0 w-32 md:w-40 flex flex-col items-center bg-white border border-gray-100 rounded-xl p-3 hover:shadow-md transition group"
                 >
                     <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden bg-gray-50 mb-3 border border-gray-100 group-hover:scale-105 transition-transform">
                         {cat.image || cat.icon ? (
-                            <img src={cat.image || cat.icon} alt={cat.name} className="w-full h-full object-cover" />
+                            <img src={cat.image?.startsWith('http') ? cat.image : `${import.meta.env.VITE_API_BASE_URL || ''} /storage/${cat.image} `} alt={cat.name} className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-primary/10 bg-primary/5 text-2xl font-bold text-primary uppercase">
                                 {cat.name.charAt(0)}
@@ -304,16 +379,8 @@ const HeroSlider = ({ banners }) => {
     if (banners.length === 0) {
         return (
             <div className="relative h-[250px] md:h-[350px] lg:h-[400px] rounded-2xl overflow-hidden bg-gray-900 group">
-                <img
-                    src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80"
-                    alt="Default Banner"
-                    className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 flex flex-col justify-center px-6 md:px-16 text-white space-y-4">
-                    <span className="inline-block bg-primary text-white text-[10px] md:text-xs font-bold px-3 py-1 rounded-full w-fit uppercase">Direct Import</span>
-                    <h2 className="text-2xl md:text-5xl font-extrabold leading-tight">
-                        Premium Quality <br /> <span className="text-primary">Best Prices</span>
-                    </h2>
+                <div className="absolute inset-0 flex flex-col justify-center items-center text-white">
+                    <p className="text-lg opacity-50">No Banners Available</p>
                 </div>
             </div>
         );
@@ -330,9 +397,10 @@ const HeroSlider = ({ banners }) => {
                     )}
                 >
                     <img
-                        src={banner.image_url || banner.image}
+                        src={banner.image_url || ((banner.image && banner.image.startsWith('http')) ? banner.image : `${import.meta.env.VITE_API_BASE_URL || ''} /storage/${banner.image} `)}
                         alt={banner.title || 'Banner'}
                         className="w-full h-full object-cover"
+                        onError={(e) => e.target.style.display = 'none'}
                     />
                     <div className="absolute inset-0 bg-black/20 flex flex-col justify-center px-6 md:px-16 text-white text-left">
                         {banner.title && (

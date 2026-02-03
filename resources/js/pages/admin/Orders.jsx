@@ -171,7 +171,7 @@ const Orders = () => {
                                         <td className="p-4 font-medium">{order.order_number}</td>
                                         <td className="p-4">
                                             <div className="text-sm">
-                                                <p className="font-medium text-gray-800">{order.user?.name}</p>
+                                                <p className="font-medium text-gray-800">{order.name || order.user?.name || 'Guest'}</p>
                                                 <p className="text-gray-500 text-xs">{order.user?.email}</p>
                                             </div>
                                         </td>
@@ -213,7 +213,7 @@ const Orders = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <h3 className="text-xs uppercase text-gray-500 font-bold mb-1">Customer</h3>
-                                    <p className="font-medium">{selectedOrder.user?.name}</p>
+                                    <p className="font-medium">{selectedOrder.name || selectedOrder.user?.name || 'Guest'}</p>
                                     <p className="text-sm text-gray-500">{selectedOrder.contact_number}</p>
                                     <p className="text-sm text-gray-500">{selectedOrder.shipping_address}</p>
                                 </div>

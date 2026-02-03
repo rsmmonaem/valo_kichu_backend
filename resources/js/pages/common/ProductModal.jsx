@@ -7,6 +7,7 @@ import { parseGalleryImages } from "../utils/parseGalleryImages";
 import { parseAttributes } from "../utils/parseAttributes";
 
 export default function ProductModal({ product, onClose }) {
+  console.log(product);
   if (!product) return null;
 
   const [quantity, setQuantity] = useState(1);
@@ -16,6 +17,7 @@ export default function ProductModal({ product, onClose }) {
   const modalRef = useRef(null);
 
   // ---------------- PARSE DATA ----------------
+  // Add safety checks for product properties
   const galleryArray = parseGalleryImages(product.gallery_images) || [];
   const productAttributes = parseAttributes(product.attributes) || [];
 
@@ -39,10 +41,10 @@ export default function ProductModal({ product, onClose }) {
       id: index + 1,
       img: image.startsWith("http")
         ? image
-        : `${import.meta.env.VITE_API_BASE_URL}/storage/products/${image}`,
+        : `${import.meta.env.VITE_API_BASE_URL || ''}/storage/products/${image}`,
     })) || [];
-    // const weightData = ["250g", "500g", "1kg"]
-    const weightData =
+
+  const weightData =
     productAttributes
       .find((a) => a.name.toLowerCase() === "weight")
       ?.values.map((c, idx) => ({
@@ -52,16 +54,33 @@ export default function ProductModal({ product, onClose }) {
       })) || [];
   // ---------------- STATE ----------------
   const [galleryId, setGalleryId] = useState(1);
-  const [preview, setPreview] = useState(
-    galleryImages[0]?.img ||
-      (product.image.startsWith("http")
-        ? product.image
-        : `${import.meta.env.VITE_API_BASE_URL}/${product.image}`)
-  );
+
+  // Safe image handling
+  const mainImage = product.image || product.thumbnail || product.gallery_images?.[0] || '';
+  const initialPreview = galleryImages[0]?.img || (mainImage.startsWith("http") ? mainImage : `${import.meta.env.VITE_API_BASE_URL || ''}/storage/products/${mainImage}`);
+
+  const [preview, setPreview] = useState(initialPreview);
   const [size, setSize] = useState(sizeData[0] || "");
   const [color, setColor] = useState(colorData[0] || {});
-//   const weightData = ["250g", "500g", "1kg"];
   const [weight, setWeight] = useState(weightData[0]);
+
+  // Update preview when product changes or galleryImages loads
+  // useEffect(() => {
+  //   const newMainImage = product.image || product.thumbnail || product.gallery_images?.[0] || '';
+  //   const newPreview = galleryImages[0]?.img || (newMainImage.startsWith("http") ? newMainImage : `${import.meta.env.VITE_API_BASE_URL || ''}/storage/products/${newMainImage}`);
+  //   setPreview(newPreview);
+  //   setHasImageError(false);
+  // }, [product, galleryImages]);
+
+  useEffect(() => {
+    const newMainImage = product.image || product.thumbnail || product.gallery_images?.[0] || '';
+    const newPreview = galleryImages[0]?.img || (newMainImage.startsWith("http") ? newMainImage : `${import.meta.env.VITE_API_BASE_URL || ''}/storage/products/${newMainImage}`);
+    
+    // Only update preview if it hasn't been manually changed
+    setPreview((prevPreview) => prevPreview || newPreview);
+    setHasImageError(false);
+}, [product, galleryImages]);
+
 
   // ---------------- EFFECTS ----------------
   useEffect(() => {
@@ -81,6 +100,8 @@ export default function ProductModal({ product, onClose }) {
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [onClose]);
+
+  const [hasImageError, setHasImageError] = useState(false);
 
   // ---------------- HANDLERS ----------------
   const handleAddToCart = () => {
@@ -107,7 +128,7 @@ export default function ProductModal({ product, onClose }) {
       <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-6">
         <div
           ref={modalRef}
-          className="relative w-full max-w-6xl max-h-[98vh] md:max-h-[92vh] bg-white border border-yellow-600 rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.35)] animate-in fade-in zoom-in-95 duration-300 overflow-hidden flex flex-col"
+          className="relative w-full max-w-6xl max-h-[80vh] md:max-h-[92vh] bg-white border border-yellow-600 rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.35)] animate-in fade-in zoom-in-95 duration-300 overflow-hidden flex flex-col"
         >
           {/* Close Button */}
           <button
@@ -124,15 +145,19 @@ export default function ProductModal({ product, onClose }) {
               {/* LEFT */}
               <div>
                 {/* Main Image */}
+                {/* <h1>hello</h1> */}
                 <div className="relative rounded-2xl overflow-hidden bg-gray-100 group">
                   <img
-                    src={preview}
+                    src={hasImageError ? 'https://placehold.co/600x600?text=No+Image' : preview}
                     alt={product.name}
                     className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-110"
+                    onError={() => setHasImageError(true)}
                   />
-                  <span className="absolute top-4 left-4 px-4 py-1 text-sm font-semibold text-white rounded-full bg-[#FFAC1C] shadow-lg">
-                    Best Seller
-                  </span>
+                  {product.tags && product.tags.includes('best_seller') && (
+                    <span className="absolute top-4 left-4 px-4 py-1 text-sm font-semibold text-white rounded-full bg-[#FFAC1C] shadow-lg">
+                      Best Seller
+                    </span>
+                  )}
                 </div>
 
                 {/* Gallery */}
@@ -144,43 +169,40 @@ export default function ProductModal({ product, onClose }) {
                       onClick={() => {
                         setGalleryId(g.id);
                         setPreview(g.img);
+                        setHasImageError(false);
                       }}
                       className={`flex-shrink-0 h-16 w-16 rounded-xl overflow-hidden border-2 transition
-                        ${
-                          g.id === galleryId
-                            ? "border-[#FFAC1C] ring-2 ring-[#FFAC1C]/40"
-                            : "border-gray-200 hover:border-[#FFAC1C]"
+                        ${g.id === galleryId
+                          ? "border-[#FFAC1C] ring-2 ring-[#FFAC1C]/40"
+                          : "border-gray-200 hover:border-[#FFAC1C]"
                         }`}
                     >
                       <img
                         src={g.img}
                         className="w-full h-full object-cover"
                         alt={`Gallery ${g.id}`}
+                        onError={(e) => e.target.style.display = 'none'}
                       />
                     </button>
                   ))}
                 </div>
 
-                {/* Key Features */}
-                {!isMobile && (
+                {/* Specifications Desktop */}
+                {!isMobile && productAttributes.length > 0 && (
                   <div className="mt-6 bg-gray-50 rounded-2xl p-6 shadow-inner">
-                    <h3 className="text-lg font-bold mb-4">Key Features</h3>
-                    <ul className="space-y-3">
-                      {(product.key_features || [
-                        "High quality materials",
-                        "Long-lasting durability",
-                        "Easy to maintain",
-                        "Modern stylish design",
-                      ]).map((f, i) => (
-                        <li
-                          key={i}
-                          className="flex items-start gap-3 text-gray-700"
-                        >
-                          <span className="mt-2 h-2 w-2 rounded-full bg-[#FFAC1C]" />
-                          {f}
-                        </li>
+                    <h3 className="text-lg font-bold mb-4">Specifications</h3>
+                    <div className="space-y-2">
+                      {productAttributes.map((attr, i) => (
+                        <div key={i} className="flex justify-between border-b border-gray-200 pb-2 last:border-0">
+                          <span className="text-gray-600 font-medium">{attr.name}</span>
+                          <span className="text-gray-800 font-semibold text-right">
+                            {Array.isArray(attr.values)
+                              ? attr.values.map(v => (typeof v === 'object' ? v.name : v)).join(', ')
+                              : attr.values}
+                          </span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
 
@@ -188,7 +210,7 @@ export default function ProductModal({ product, onClose }) {
                 {!isMobile && product.video_link && (
                   <div className="mt-6 rounded-2xl overflow-hidden shadow-lg aspect-video">
                     <iframe
-                      src="https://www.youtube.com/embed/Q15nlbbvIoY"
+                      src={product.video_link.replace("watch?v=", "embed/")} // Simple convert
                       className="w-full h-full"
                       title="Product video"
                       allowFullScreen
@@ -212,15 +234,16 @@ export default function ProductModal({ product, onClose }) {
                       className="text-[#FFAC1C] fill-[#FFAC1C]"
                     />
                   ))}
-                  <span className="text-sm text-gray-500 ml-2">(120 reviews)</span>
+                  
+                  <span className="text-sm text-gray-500 ml-2">({product.rating_count || 0} reviews)</span>
                 </div>
 
                 {/* Price */}
                 <div className="flex items-center gap-4 mb-6">
                   <span className="text-3xl md:text-4xl font-extrabold text-primary">
-                    ৳{product.sale_price || product.base_price}
+                    ৳{product.sale_price || product.base_price || product.price}
                   </span>
-                  {product.sale_price && (
+                  {product.sale_price && product.sale_price < product.base_price && (
                     <span className="text-lg text-gray-400 line-through">
                       ৳{product.base_price}
                     </span>
@@ -233,7 +256,7 @@ export default function ProductModal({ product, onClose }) {
                   <div>
                     <p className="text-sm text-gray-500">Earn Loyalty Coins</p>
                     <p className="font-bold text-yellow-600">
-                      {product.loyalty_points || 200} Coins
+                      {product.loyalty_points || 0} Coins
                     </p>
                   </div>
                 </div>
@@ -241,30 +264,33 @@ export default function ProductModal({ product, onClose }) {
                 {/* Color */}
                 {colorData.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="font-semibold mb-3">Color: {color.name}</h3>
+                    <h3 className="font-semibold mb-3">Color: {color?.name}</h3>
                     <div className="grid grid-cols-3 gap-4">
                       {colorData.map((c) => (
                         <div
                           key={c.id}
                           onClick={() => {
                             setColor(c);
-                            setPreview(c.img || preview);
+                            if (c.img) {
+                              setPreview(c.img);
+                              setHasImageError(false);
+                            }
                           }}
-                          className={`p-3 rounded-xl cursor-pointer transition hover:scale-105 ${
-                            c.id === color.id
-                              ? "bg-[#FFAC1C] text-white shadow-lg"
-                              : "bg-gray-100"
-                          }`}
+                          className={`p-3 rounded-xl cursor-pointer transition hover:scale-105 ${c.id === color?.id
+                            ? "bg-[#FFAC1C] text-white shadow-lg"
+                            : "bg-gray-100"
+                            }`}
                         >
                           {c.img ? (
                             <img
                               src={
                                 c.img.startsWith("http")
                                   ? c.img
-                                  : `${import.meta.env.VITE_API_BASE_URL}/${c.img}`
+                                  : `${import.meta.env.VITE_API_BASE_URL || ''}/${c.img}`
                               }
                               className="rounded-lg w-full aspect-square object-cover"
                               alt={c.name}
+                              onError={(e) => e.target.style.display = 'none'}
                             />
                           ) : (
                             <span className="block text-center">{c.name}</span>
@@ -277,17 +303,16 @@ export default function ProductModal({ product, onClose }) {
 
                 {/* Weight */}
                 <div className="mb-6">
-                  <h3 className={`font-semibold mb-3 ${weightData.length>0 ? "" : "hidden"}`}>Weight: {weight}</h3>
+                  <h3 className={`font-semibold mb-3 ${weightData.length > 0 ? "" : "hidden"}`}>Weight: {weight?.name || weight}</h3>
                   <div className="grid grid-cols-3 gap-4">
                     {weightData.map((w) => (
                       <div
-                        key={w}
+                        key={w.id || w}
                         onClick={() => setWeight(w)}
-                        className={`p-3 text-center rounded-xl cursor-pointer transition hover:scale-105 ${
-                          w === weight ? "bg-[#FFAC1C] text-white shadow-lg" : "bg-gray-100"
-                        }`}
+                        className={`p-3 text-center rounded-xl cursor-pointer transition hover:scale-105 ${(w.id === weight?.id || w === weight) ? "bg-[#FFAC1C] text-white shadow-lg" : "bg-gray-100"
+                          }`}
                       >
-                        {w}
+                        {w.name || w}
                       </div>
                     ))}
                   </div>
@@ -302,9 +327,8 @@ export default function ProductModal({ product, onClose }) {
                         <div
                           key={s}
                           onClick={() => setSize(s)}
-                          className={`p-3 text-center rounded-xl cursor-pointer transition hover:scale-105 ${
-                            s === size ? "bg-[#FFAC1C] text-white shadow-lg" : "bg-gray-100"
-                          }`}
+                          className={`p-3 text-center rounded-xl cursor-pointer transition hover:scale-105 ${s === size ? "bg-[#FFAC1C] text-white shadow-lg" : "bg-gray-100"
+                            }`}
                         >
                           {s}
                         </div>
@@ -340,12 +364,7 @@ export default function ProductModal({ product, onClose }) {
                   <div className="mt-6 bg-gray-50 rounded-2xl p-6 shadow-inner">
                     <h3 className="text-lg font-bold mb-4">Key Features</h3>
                     <ul className="space-y-3">
-                      {(product.key_features || [
-                        "High quality materials",
-                        "Long-lasting durability",
-                        "Easy to maintain",
-                        "Modern stylish design",
-                      ]).map((f, i) => (
+                      {(product.key_features || []).map((f, i) => (
                         <li key={i} className="flex items-start gap-3 text-gray-700">
                           <span className="mt-2 h-2 w-2 rounded-full bg-[#FFAC1C]" />
                           {f}
@@ -359,7 +378,7 @@ export default function ProductModal({ product, onClose }) {
                 {isMobile && product.video_link && (
                   <div className="mt-6 rounded-2xl overflow-hidden shadow-lg aspect-video">
                     <iframe
-                      src="https://www.youtube.com/embed/Q15nlbbvIoY"
+                      src={product.video_link.replace("watch?v=", "embed/")}
                       className="w-full h-full"
                       title="Product video"
                       allowFullScreen
@@ -373,9 +392,10 @@ export default function ProductModal({ product, onClose }) {
             <div className="px-6 md:px-8 pb-6 md:pb-8">
               <div className="bg-gray-50 rounded-2xl p-6 shadow-inner">
                 <h3 className="text-xl font-bold mb-3">Description</h3>
-                <p className="text-gray-700 leading-relaxed">
-                  {product.description || "No description available."}
-                </p>
+                <div
+                  className="text-gray-700 leading-relaxed prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: product.description || "No description available." }}
+                />
               </div>
             </div>
           </div>

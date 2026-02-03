@@ -329,121 +329,144 @@ class OrderController extends Controller
         }
 
         $user = $request->user();
-    
-    // Fetch address details
-    $address = null;
-    if ($request->address_id) {
-        $address = Address::where('id', $request->address_id)
-            ->where('user_id', $user->id)
-            ->first();
-    }
 
-    $shippingAddress = $address ? "$address->address_line1, $address->city, $address->country" : ($request->address ?? 'N/A');
-    $contactNumber = $address ? $address->phone : ($request->phone_number ?? $user->phone_number ?? 'N/A');
-
-    $tranId = $request->tran_id ?? $request->transaction_id;
-    $payment = null;
-    $paymentStatus = 'unpaid'; // default from migration
-
-    if ($tranId) {
-        $payment = PaymentInfo::where('transaction_id', $tranId)->first();
-        if ($payment && $payment->status === PaymentInfo::STATUS_COMPLETE) {
-            $paymentStatus = 'paid';
-        }
-    }
-
-    // Calculate total
-    $totalPrice = 0;
-    $orderItems = [];
-
-    foreach ($request->products as $item) {
-        $product = Product::findOrFail($item['product_id']);
-        $variant = !empty($item['variant_id']) ? ProductVariation::find($item['variant_id']) : null;
-        $quantity = (int) $item['quantity'];
-
-        // Use standard price logic
-        $itemPrice = $variant ? (float)$variant->price : (float)$product->price;
-
-        $totalPrice += $itemPrice * $quantity;
-
-        $orderItems[] = [
-            'product' => $product,
-            'variant' => $variant,
-            'quantity' => $quantity,
-            'price' => $itemPrice
-        ];
-    }
-
-    // Handle coupon
-    $discountAmount = 0;
-    $appliedCoupon = AppliedCoupon::where('user_id', $user->id)
-        ->where('is_used', false)
-        ->where('expires_at', '>', now())
-        ->first();
-
-    if ($appliedCoupon) {
-        $coupon = $appliedCoupon->coupon;
-
-        if (CouponUsage::where('coupon_id', $coupon->id)
-            ->where('user_id', $user->id)
-            ->exists()) {
-            return response()->json(['detail' => 'You have already used this coupon.'], 400);
+        // Fetch address details
+        $address = null;
+        if ($request->address_id && $user) {
+            $address = Address::where('id', $request->address_id)
+                ->where('user_id', $user->id)
+                ->first();
         }
 
-        if (!$coupon->isValid()) {
-            return response()->json(['detail' => 'Coupon is no longer valid.'], 400);
+        // Align with Checkout.jsx keys: shipping_address, contact_number
+        // Also fallback to address/phone_number if sent by others
+        $shippingAddress = $address 
+            ? "$address->address_line1, $address->city, $address->country" 
+            : ($request->shipping_address ?? $request->address ?? 'N/A');
+            
+        $contactNumber = $address 
+            ? $address->phone 
+            : ($request->contact_number ?? $request->phone_number ?? ($user?->phone_number) ?? 'N/A');
+
+        $tranId = $request->tran_id ?? $request->transaction_id;
+        $payment = null;
+        $paymentStatus = 'unpaid'; // default from migration
+
+        if ($tranId) {
+            $payment = PaymentInfo::where('transaction_id', $tranId)->first();
+            if ($payment && $payment->status === PaymentInfo::STATUS_COMPLETE) {
+                $paymentStatus = 'paid';
+            }
         }
 
-        if ($coupon->discount_rate) {
-            $discountAmount = ($totalPrice * $coupon->discount_rate / 100);
-        } elseif ($coupon->discount_amount) {
-            $discountAmount = $coupon->discount_amount;
+        // Calculate total
+        $totalPrice = 0;
+        $orderItems = [];
+
+        foreach ($request->products as $item) {
+            $product = Product::findOrFail($item['product_id']);
+            $variant = !empty($item['variant_id']) ? ProductVariation::find($item['variant_id']) : null;
+            $quantity = (int) $item['quantity'];
+
+            // Use standard price logic
+            $itemPrice = $variant ? (float)$variant->price : (float)$product->price;
+
+            $totalPrice += $itemPrice * $quantity;
+
+            $orderItems[] = [
+                'product' => $product,
+                'variant' => $variant,
+                'quantity' => $quantity,
+                'price' => $itemPrice
+            ];
         }
 
-        $totalPrice -= $discountAmount;
-        if ($totalPrice < 0) {
-            $totalPrice = 0;
-        }
-    }
+        // Handle coupon (Only for logged-in users for now)
+        $discountAmount = 0;
+        $appliedCoupon = null;
+        
+        if ($user) {
+            $appliedCoupon = AppliedCoupon::where('user_id', $user->id)
+                ->where('is_used', false)
+                ->where('expires_at', '>', now())
+                ->first();
 
-    // Create Order
-    $order = Order::create([
-        'user_id' => $user->id,
-        'subtotal' => $totalPrice + $discountAmount, // Before coupon
-        'discount' => $discountAmount,
-        'total_price' => $totalPrice,
-        'status' => 'pending',
-        'payment_method' => $request->payment_method,
-        'payment_status' => $paymentStatus,
-        'transaction_id' => $tranId,
-        'address_id' => $address?->id,
-        'payment_id' => $payment?->id,
-        'shipping_address' => $shippingAddress,
-        'contact_number' => $contactNumber,
-        'currency' => 'BDT',
-        'exchange_rate' => 1,
-    ]);
+            if ($appliedCoupon) {
+                $coupon = $appliedCoupon->coupon;
+
+                if (CouponUsage::where('coupon_id', $coupon->id)
+                    ->where('user_id', $user->id)
+                    ->exists()) {
+                    return response()->json(['detail' => 'You have already used this coupon.'], 400);
+                }
+
+                if (!$coupon->isValid()) {
+                    return response()->json(['detail' => 'Coupon is no longer valid.'], 400);
+                }
+
+                if ($coupon->discount_rate) {
+                    $discountAmount = ($totalPrice * $coupon->discount_rate / 100);
+                } elseif ($coupon->discount_amount) {
+                    $discountAmount = $coupon->discount_amount;
+                }
+
+                $totalPrice -= $discountAmount;
+                if ($totalPrice < 0) {
+                    $totalPrice = 0;
+                }
+            }
+        }
+
+        // Create Order
+        $order = Order::create([
+            'user_id' => $user ? $user->id : null,
+            'name' => $request->name ?? ($user ? ($user->first_name . ' ' . $user->last_name) : 'Guest'),
+            'subtotal' => $totalPrice + $discountAmount, // Before coupon
+            'discount' => $discountAmount,
+            'total_price' => $totalPrice, // You might want to add shipping cost here if passed from frontend
+            'status' => 'pending',
+            'payment_method' => $request->payment_method,
+            'payment_status' => $paymentStatus,
+            'transaction_id' => $tranId,
+            'address_id' => $address?->id,
+            'payment_id' => $payment?->id,
+            'shipping_address' => $shippingAddress,
+            'contact_number' => $contactNumber,
+            'currency' => 'BDT',
+            'exchange_rate' => 1,
+            'shipping_cost' => $request->shipping_cost ?? 0, // Add shipping cost if passed
+            'notes' => $request->notes ?? null,
+        ]);
+        
+        // Note: I added shipping_cost and notes map because they were missing in original checkout logic 
+        // but present in Checkout.jsx payload. Original used lines 87/94 in `store` but `checkout` missed them.
+        // Wait, original `checkout` did NOT save shipping_cost or notes?
+        // Let's check original.
+        // Original `checkout` (314-469) did NOT map shipping_cost or notes from request to Order::create.
+        // `Order::create` (418-433) only had those fields.
+        // But `store` method (32-118) DID map them.
+        // I should add them since the frontend sends them.
 
         // Create OrderItems
-    foreach ($orderItems as $item) {
-        $variationSnapshot = $item['variant'] 
-            ? trim(($item['variant']->size ? "Size: {$item['variant']->size}, " : "") . ($item['variant']->color ? "Color: {$item['variant']->color}" : ""), ", ")
-            : null;
+        foreach ($orderItems as $item) {
+            $variationSnapshot = $item['variant'] 
+                ? trim(($item['variant']->size ? "Size: {$item['variant']->size}, " : "") . ($item['variant']->color ? "Color: {$item['variant']->color}" : ""), ", ")
+                : null;
 
-        OrderItem::create([
-            'order_id' => $order->id,
-            'product_id' => $item['product']->id,
-            'product_variation_id' => $item['variant']?->id,
-            'quantity' => $item['quantity'],
-            'unit_price' => $item['price'],
-            'total_price' => $item['price'] * $item['quantity'],
-            'product_name' => $item['product']->name,
-            'variation_snapshot' => $variationSnapshot,
-        ]);
-    }
+            OrderItem::create([
+                'order_id' => $order->id,
+                'product_id' => $item['product']->id,
+                'product_variation_id' => $item['variant']?->id,
+                'quantity' => $item['quantity'],
+                'unit_price' => $item['price'],
+                'total_price' => $item['price'] * $item['quantity'],
+                'product_name' => $item['product']->name,
+                'variation_snapshot' => $variationSnapshot,
+            ]);
+        }
 
         // Mark coupon as used
-        if ($appliedCoupon) {
+        if ($appliedCoupon && $user) {
             $appliedCoupon->is_used = true;
             $appliedCoupon->save();
             CouponUsage::create([
@@ -453,7 +476,9 @@ class OrderController extends Controller
         }
 
         // Clear cart
-        CartItem::where('user_id', $user->id)->delete();
+        if ($user) {
+            CartItem::where('user_id', $user->id)->delete();
+        }
 
         $order->load(['items.product.images', 'items.variation.images']);
 

@@ -23,7 +23,10 @@ class CategoryController extends Controller
             'parent_id' => 'nullable|exists:categories,id',
             'image' => 'nullable|string', // Assuming URL or path
             'is_active' => 'boolean',
-            'priority' => 'nullable|integer|min:1|max:10'
+            'priority' => 'nullable|integer|min:1|max:10',
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string',
+            'meta_keywords' => 'nullable|string|max:255',
         ]);
        
         $slug = Str::slug($validated['name']);
@@ -40,6 +43,9 @@ class CategoryController extends Controller
             'image' => $validated['image'] ?? null,
             'is_active' => $validated['is_active'] ?? true,
             'priority' => $validated['priority'] ?? null,
+            'meta_title' => $validated['meta_title'] ?? null,
+            'meta_description' => $validated['meta_description'] ?? null,
+            'meta_keywords' => $validated['meta_keywords'] ?? null,
         ]);
 
         return response()->json($category, 201);
@@ -59,7 +65,10 @@ class CategoryController extends Controller
             'parent_id' => 'nullable|exists:categories,id',
             'image' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
-            'priority' => 'nullable|integer|min:1|max:10'
+            'priority' => 'nullable|integer|min:1|max:10',
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string',
+            'meta_keywords' => 'nullable|string|max:255',
         ]);
 
         if (isset($validated['name'])) {

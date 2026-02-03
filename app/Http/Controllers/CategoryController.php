@@ -19,4 +19,10 @@ class CategoryController extends Controller
             
         return response()->json($categories);
     }
+
+    public function show($slug)
+    {
+        $category = Category::where('slug', $slug)->where('is_active', true)->firstOrFail();
+        return response()->json($category);
+    }
 }

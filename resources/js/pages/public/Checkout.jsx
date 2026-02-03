@@ -5,7 +5,7 @@ import { useConfig } from "../../context/ConfigContext";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import toast from "react-hot-toast";
-import { MapPin, Phone, CreditCard, CheckCircle } from "lucide-react";
+import { MapPin, Phone, Mail, CreditCard, CheckCircle } from "lucide-react";
 import clsx from "clsx";
 
 const Checkout = () => {
@@ -17,6 +17,7 @@ const Checkout = () => {
 
     const [paymentProcess, setPaymentProcess] = useState(true);
     const [checkoutData, setCheckoutData] = useState({
+        // name: `${user?.first_name || ""} ${user?.last_name || ""}`.trim(),
         name: `${user?.first_name || ""} ${user?.last_name || ""}`.trim(),
         phone: user?.phone || "",
         email: user?.email || "", // Ensure we have email for address saving
@@ -28,7 +29,7 @@ const Checkout = () => {
         zip_code: "",
         payment_method: "cod",
         notes: "",
-        area:""
+        area: ""
     });
 
     if (cart.length === 0) {
@@ -36,33 +37,42 @@ const Checkout = () => {
         return null;
     }
 
+    const [shippingCost, setShippingCost] = useState(0);
+
     const handleChange = (e) => {
         const updatedData = {
             ...checkoutData,
             [e.target.name]: e.target.value,
         };
-    
+        console.log(updatedData);
+
         setCheckoutData(updatedData);
-    
+
+        // Update shipping cost based on area
+        if (e.target.name === "area") {
+            if (e.target.value === "Inside Dhaka") {
+                setShippingCost(config?.shipping_charge_inside_dhaka || 60);
+            } else if (e.target.value === "Outside Dhaka") {
+                setShippingCost(config?.shipping_charge_outside_dhaka || 120);
+            } else {
+                setShippingCost(0);
+            }
+        }
+
         const isValid =
             updatedData.name.trim().length > 0 &&
             updatedData.phone.trim().length >= 11 &&
             updatedData.address_line1.trim().length > 0 &&
-            updatedData.city.trim().length > 0 &&
-            updatedData.district.trim().length > 0 &&
-            updatedData.area=="Inside Dhaka" || "Outside Dhaka";
+            // updatedData.city.trim().length > 0 &&
+            // updatedData.district.trim().length > 0 &&
+            (updatedData.area === "Inside Dhaka" || updatedData.area === "Outside Dhaka");
 
-    
-        // setPaymentProcess(!isValid);
 
-        // console.log(isValid);
-        if(isValid)
-        {
+        if (isValid) {
             setPaymentProcess(false);
-            console.log(checkoutData);
         }
         else setPaymentProcess(true);
-        
+
     };
 
     const handleSubmit = async (e) => {
@@ -70,37 +80,33 @@ const Checkout = () => {
         setLoading(true);
 
         try {
-            // 1. Save Address to Address Book
-            // The API requires specific fields: title, name, phone, email, address_line1, city, district, country
-            const addressPayload = {
-                title: "Shipping Address", // Default title
-                name: checkoutData.name,
-                phone: checkoutData.phone,
-                email: checkoutData.email || user?.email || "guest@example.com", // Basic fallback
-                address_line1: checkoutData.address_line1,
-                address_line2: checkoutData.address_line2,
-                city: checkoutData.city,
-                district: checkoutData.district,
-                state: checkoutData.country,
-                postal_code: checkoutData.zip_code,
-                country:checkoutData.country
-            };
-            // console.log(addressPayload);
-            // Attempt to save address. If it fails due to validation, the catch block will handle it.
-            // We await this to ensure address is saved before order is placed.
-            try {
-                const ckdata=await api.post("/v1/auth/addresses", addressPayload);
-                console.log(ckdata.data)
-            } catch (addressError) {
-                console.warn(
-                    "Address save failed, proceeding with order anyway if possible/required, or logging.",
-                    addressError
-                );
-                // Optional: Decide if we block order placement if address save fails.
-                // For now, we proceed, but typically you might want to stop here:
-                // toast.error("Could not save address. Please check your details.");
-                // setLoading(false);
-                // return;
+            // 1. Save Address to Address Book (Only for logged-in users)
+            if (user) {
+                // The API requires specific fields: title, name, phone, email, address_line1, city, district, country
+                const addressPayload = {
+                    title: "Shipping Address", // Default title
+                    name: checkoutData.name,
+                    phone: checkoutData.phone,
+                    email: checkoutData.email || user?.email,
+                    address_line1: checkoutData.address_line1,
+                    address_line2: checkoutData.address_line2,
+                    city: checkoutData.city,
+                    district: checkoutData.district,
+                    state: checkoutData.country,
+                    postal_code: checkoutData.zip_code,
+                    country: checkoutData.country
+                };
+                console.log("Address Payload:", addressPayload);
+
+                try {
+                    const ckdata = await api.post("/v1/auth/addresses", addressPayload);
+                    console.log(ckdata.data)
+                } catch (addressError) {
+                    console.warn(
+                        "Address save failed, proceeding with order anyway if possible/required, or logging.",
+                        addressError
+                    );
+                }
             }
 
             // 2. Place Order
@@ -112,16 +118,15 @@ const Checkout = () => {
                     quantity: item.quantity,
                 })),
                 // Construct a full address string for the order record
-                shipping_address: `${checkoutData.address_line1}, ${
-                    checkoutData.address_line2
-                        ? checkoutData.address_line2 + ", "
-                        : ""
-                }${checkoutData.city}, ${checkoutData.district}, ${
-                    checkoutData.country
-                } - ${checkoutData.zip_code}`,
+                shipping_address: `${checkoutData.address_line1}, ${checkoutData.address_line2
+                    ? checkoutData.address_line2 + ", "
+                    : ""
+                    }${checkoutData.city}, ${checkoutData.district}, ${checkoutData.country
+                    } - ${checkoutData.zip_code}`,
                 contact_number: checkoutData.phone,
                 payment_method: checkoutData.payment_method,
                 notes: checkoutData.notes,
+                shipping_cost: shippingCost, // Pass the calculated shipping cost
             };
             // const payload = {
             //     name: "Imani House1",
@@ -134,9 +139,9 @@ const Checkout = () => {
             //     payment_method: "cash_on_delivery",
             //     notes: "Officiis numquam obc"
             //   };
-              
+
             //   await api.post('/api/v1/order/checkout', payload);
-              
+
             // console.log(orderPayload);
 
             const { data } = await api.post("/v1/order/checkout", orderPayload);
@@ -161,8 +166,8 @@ const Checkout = () => {
                 error.response?.data?.message ||
                 (error.response?.data?.errors
                     ? Object.values(error.response.data.errors)
-                          .flat()
-                          .join(", ")
+                        .flat()
+                        .join(", ")
                     : "Failed to place order");
             toast.error(msg);
         } finally {
@@ -223,6 +228,26 @@ const Checkout = () => {
                                 />
                             </div>
                         </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Email
+                            </label>
+                            <div className="relative">
+                                <Mail
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                    size={18}
+                                />
+                                <input
+                                    type="text"
+                                    name="email"
+                                    required
+                                    placeholder="Enter your email address"
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500"
+                                    value={checkoutData.email}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                        </div>
 
                         {/* Structured Address Fields */}
                         <div className="grid grid-cols-1 gap-4">
@@ -240,7 +265,7 @@ const Checkout = () => {
                                     onChange={handleChange}
                                 />
                             </div>
-                            <div>
+                            {/* <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Address Line 2 (Optional)
                                 </label>
@@ -311,7 +336,7 @@ const Checkout = () => {
                                         onChange={handleChange}
                                     />
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
 
                         <div>
@@ -407,12 +432,12 @@ const Checkout = () => {
                                 </div>
                                 <div className="flex justify-between text-gray-600">
                                     <span>Shipping</span>
-                                    <span>৳100</span>
+                                    <span>৳{shippingCost}</span>
                                 </div>
                                 <div className="flex justify-between text-lg font-bold text-gray-800 pt-2">
                                     <span>Total</span>
                                     <span className="text-red-600">
-                                        ৳{cartTotal + 100}
+                                        ৳{cartTotal + shippingCost}
                                     </span>
                                 </div>
                             </div>
@@ -459,16 +484,16 @@ const Checkout = () => {
                                                 </span>
                                                 {method.additional_datas
                                                     ?.gateway_image && (
-                                                    <img
-                                                        src={
-                                                            method
-                                                                .additional_datas
-                                                                .gateway_image
-                                                        }
-                                                        alt={method.key_name}
-                                                        className="h-6 object-contain"
-                                                    />
-                                                )}
+                                                        <img
+                                                            src={
+                                                                method
+                                                                    .additional_datas
+                                                                    .gateway_image
+                                                            }
+                                                            alt={method.key_name}
+                                                            className="h-6 object-contain"
+                                                        />
+                                                    )}
                                             </div>
                                             {method.type === "cod" && (
                                                 <span className="text-xs text-gray-500">
@@ -491,10 +516,10 @@ const Checkout = () => {
 
                                 {(!config?.payment_methods ||
                                     config.payment_methods.length === 0) && (
-                                    <div className="text-center p-4 text-gray-500">
-                                        No payment methods available.
-                                    </div>
-                                )}
+                                        <div className="text-center p-4 text-gray-500">
+                                            No payment methods available.
+                                        </div>
+                                    )}
                             </div>
 
                             <button
@@ -504,7 +529,7 @@ const Checkout = () => {
                             >
                                 {loading
                                     ? "Placing Order..."
-                                    : `Place Order (৳${cartTotal + 100})`}
+                                    : `Place Order (৳${cartTotal + shippingCost})`}
                             </button>
                         </div>
                     </div>

@@ -1,10 +1,11 @@
 import React from "react";
 
 function ProductCard({product}) {
+    console.log('Product in ProductCard:', product);
     return (
         <div>
             <div className="aspect-square bg-gray-100 relative overflow-hidden">
-                <h1>hello</h1>
+                {/* <h1>hello</h1> */}
                 {product.image && (
                     <img
                         src={`${import.meta.env.VITE_API_BASE_URL}/storage/products/${product.image}`}

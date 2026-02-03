@@ -80,6 +80,11 @@ class ProductController extends Controller
             'is_featured' => 'boolean',
             'is_trending' => 'boolean',
             'is_discounted' => 'boolean',
+
+            // SEO
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string',
+            'meta_keywords' => 'nullable|string|max:255',
         ]);
 
         return DB::transaction(function () use ($request, $validated) {
@@ -126,7 +131,7 @@ class ProductController extends Controller
 
                 // JSON
                 'variations' => $request->variations ?? [],
-                'attributes' => $request->attributes ?? [],
+                'attributes' => $validated['attributes'] ?? [],
                 'colors' => $request->colors ?? [],
                 'tags' => $request->tags ?? [],
 
@@ -135,6 +140,11 @@ class ProductController extends Controller
                 'is_featured' => $validated['is_featured'] ?? false,
                 'is_trending' => $validated['is_trending'] ?? false,
                 'is_discounted' => $validated['is_discounted'] ?? false,
+
+                // SEO
+                'meta_title' => $validated['meta_title'] ?? null,
+                'meta_description' => $validated['meta_description'] ?? null,
+                'meta_keywords' => $validated['meta_keywords'] ?? null,
 
                 'created_by_admin_id' => $request->user()->id,
             ]);

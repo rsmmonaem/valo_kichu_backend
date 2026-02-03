@@ -1,10 +1,12 @@
 import React from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle, ArrowRight } from 'lucide-react';
+import { useAuth } from '../../context/AuthProvider';
 
 const OrderSuccess = () => {
     const [searchParams] = useSearchParams();
     const orderNumber = searchParams.get('order');
+    const { user } = useAuth();
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-20 px-4">
@@ -23,9 +25,11 @@ const OrderSuccess = () => {
                 )}
 
                 <div className="space-y-3">
-                    <Link to="/orders" className="block w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition">
-                        View My Orders
-                    </Link>
+                    {user && (
+                        <Link to="/orders" className="block w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition">
+                            View My Orders
+                        </Link>
+                    )}
                     <Link to="/" className="block w-full bg-white text-gray-600 border border-gray-200 py-3.5 rounded-xl font-bold hover:bg-gray-50 transition">
                         Continue Shopping
                     </Link>

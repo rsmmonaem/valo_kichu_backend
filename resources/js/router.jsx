@@ -76,11 +76,7 @@ const AppRouter = () => {
                                 />
                                 <Route
                                     path="order-success"
-                                    element={
-                                        <ProtectedRoute>
-                                            <OrderSuccess />
-                                        </ProtectedRoute>
-                                    }
+                                    element={<OrderSuccess />}
                                 />
                                 <Route
                                     path="profile"

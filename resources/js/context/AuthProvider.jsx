@@ -64,14 +64,19 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
+        console.log("Logout called");
+
         try {
             await api.post('/logout');
+        } catch (error) {
+            console.error('Logout failed', error);
+        } finally {
+            // Ensure token and user data are cleared
             setUser(null);
             localStorage.removeItem('token');
             delete api.defaults.headers.common['Authorization'];
+            console.log("Logout successful");
             toast.success('Logged out');
-        } catch (error) {
-            console.error('Logout failed', error);
         }
     };
 
@@ -79,8 +84,10 @@ export const AuthProvider = ({ children }) => {
         const token = localStorage.getItem('token');
         if (token) {
             api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            fetchUser();
+        } else {
+            setLoading(false); // Stop loading if no token is found
         }
-        fetchUser();
     }, []);
 
     return (

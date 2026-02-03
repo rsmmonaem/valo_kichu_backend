@@ -219,32 +219,29 @@ class CommerceController extends Controller
 
     public function brandWithProducts(Request $request)
     {
-        $brands = Brand::all();
-        $result = [];
+        $brands = Brand::with(['products' => function ($query) {
+            $query->where('is_active', true)
+                  ->with(['category', 'brand', 'reviews.user', 'variations.images']);
+        }])->get();
 
-        foreach ($brands as $brand) {
-            $products = Product::where('brand_id', $brand->id)
-                ->with(['category', 'brand', 'reviews.user', 'variants.images', 'variants.attributes'])
-                ->get();
-            if ($products->isEmpty()) {
-                continue;
-            }
-
-            $result[] = [
+        $result = $brands->filter(function ($brand) {
+            return $brand->products->isNotEmpty();
+        })->map(function ($brand) {
+            return [
                 'brand' => [
                     'id' => $brand->id,
                     'vendor_id' => $brand->vendor_id,
                     'name' => $brand->name,
                     'slug' => $brand->slug,
                     'description' => $brand->description,
-                    'image' => $brand->image_url, // Use accessor for full URL
+                    'image' => $brand->image_url,
                     'status' => $brand->status,
                     'created_at' => $brand->created_at,
                     'updated_at' => $brand->updated_at,
                 ],
-                'products' => ProductResource::collection($products)
+                'products' => ProductResource::collection($brand->products)
             ];
-        }
+        })->values();
 
         return response()->json($result);
     }
@@ -280,23 +277,19 @@ class CommerceController extends Controller
 
     public function categoriesWithProducts(Request $request)
     {
-        $categories = Category::all();
-        $result = [];
+        $categories = Category::with(['products' => function ($query) {
+            $query->where('is_active', true)
+                  ->with(['category', 'brand', 'reviews.user', 'images', 'variations.images']);
+        }])->get();
 
-        foreach ($categories as $category) {
-            $products = Product::where('category_id', $category->id)
-                ->where('is_active', true)
-                ->with(['category', 'brand', 'reviews.user', 'images', 'variations.images'])
-                ->get();
-            if ($products->isEmpty()) {
-                continue;
-            }
-
-            $result[] = [
+        $result = $categories->filter(function ($category) {
+            return $category->products->isNotEmpty();
+        })->map(function ($category) {
+            return [
                 'category' => $category,
-                'products' => ProductResource::collection($products)
+                'products' => ProductResource::collection($category->products)
             ];
-        }
+        })->values();
 
         return response()->json($result);
     }

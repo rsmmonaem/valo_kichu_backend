@@ -6,6 +6,13 @@ import toast from 'react-hot-toast';
 const Appearance = () => {
     const [settings, setSettings] = useState({
         site_logo: '',
+        favicon: '',
+        business_name: '',
+        site_title: '',
+        primary_color: '#2563eb',
+        secondary_color: '#1e293b',
+        shipping_charge_inside_dhaka: '',
+        shipping_charge_outside_dhaka: ''
     });
     const [banners, setBanners] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -27,6 +34,13 @@ const Appearance = () => {
             settingsRes.data.forEach(s => {
                 settingsObj[s.key] = s.value;
             });
+
+            // Handle potentially different key names if needed, but strive for consistency
+            // If DB calls it 'site_name', map it, otherwise assume 'business_name'
+            if (settingsObj.site_name && !settingsObj.business_name) {
+                settingsObj.business_name = settingsObj.site_name; // migration support
+            }
+
             setSettings(prev => ({ ...prev, ...settingsObj }));
             setBanners(bannersRes.data || []);
         } catch (error) {
@@ -45,6 +59,8 @@ const Appearance = () => {
             }));
             await api.post('/admin/v1/settings', { settings: settingsArray });
             toast.success("Settings saved successfully!");
+            // Optionally reload to reflect changes globally if layout listens to local storage or similar, 
+            // but PublicLayout fetches fresh on mount/reload.
         } catch (error) {
             toast.error("Failed to save settings");
         }
@@ -125,48 +141,122 @@ const Appearance = () => {
                     <Settings size={20} className="text-blue-600" /> Business Settings
                 </h2>
                 <div className="space-y-4 max-w-xl">
-                    {/* Site Name */}
+                    {/* Business Name */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
                         <input
                             type="text"
                             className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
                             placeholder="My E-Commerce Store"
-                            value={settings.site_name || ''}
-                            onChange={e => setSettings({ ...settings, site_name: e.target.value })}
+                            value={settings.business_name || ''}
+                            onChange={e => setSettings({ ...settings, business_name: e.target.value })}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Displayed in footer and navigation.</p>
+                    </div>
+
+                    {/* Site Title */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Site Title (Browser Tab)</label>
+                        <input
+                            type="text"
+                            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="Store Name - Best Deals"
+                            value={settings.site_title || ''}
+                            onChange={e => setSettings({ ...settings, site_title: e.target.value })}
                         />
                     </div>
 
-                    {/* Logo */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
-                        <div className="flex items-center gap-4">
-                            <div className="w-24 h-24 border rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
-                                {settings.site_logo ? (
-                                    <img
-                                        src={settings.site_logo?.startsWith('http') ? settings.site_logo : `/storage/${settings.site_logo}`}
-                                        alt="Logo"
-                                        className="w-full h-full object-contain p-2"
+                    {/* Logo & Favicon Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Logo */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                            <div className="flex items-center gap-4">
+                                <div className="w-20 h-20 border rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
+                                    {settings.site_logo ? (
+                                        <img
+                                            src={settings.site_logo?.startsWith('http') ? settings.site_logo : `/storage/${settings.site_logo}`}
+                                            alt="Logo"
+                                            className="w-full h-full object-contain p-2"
+                                        />
+                                    ) : (
+                                        <ImageIcon className="text-gray-400" size={24} />
+                                    )}
+                                </div>
+                                <div className="flex flex-col">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        id="logo-upload"
+                                        onChange={(e) => handleImageUpload(e, 'site_logo')}
                                     />
-                                ) : (
-                                    <ImageIcon className="text-gray-400" size={32} />
-                                )}
+                                    <label
+                                        htmlFor="logo-upload"
+                                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 cursor-pointer inline-flex items-center gap-1 w-fit"
+                                    >
+                                        <ImageIcon size={14} /> Upload Logo
+                                    </label>
+                                    <p className="text-[10px] text-gray-500 mt-1">Recommended size: 200x50px</p>
+                                </div>
                             </div>
-                            <div>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    id="logo-upload"
-                                    onChange={(e) => handleImageUpload(e, 'site_logo')}
-                                />
-                                <label
-                                    htmlFor="logo-upload"
-                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 cursor-pointer inline-flex items-center gap-2"
-                                >
-                                    <ImageIcon size={16} /> Choose Image
-                                </label>
-                                <p className="text-xs text-gray-500 mt-2">Recommended size: 200x50px</p>
+                        </div>
+
+                        {/* Favicon */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Favicon</label>
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 border rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
+                                    {settings.favicon ? (
+                                        <img
+                                            src={settings.favicon?.startsWith('http') ? settings.favicon : `/storage/${settings.favicon}`}
+                                            alt="Favicon"
+                                            className="w-full h-full object-contain p-2"
+                                        />
+                                    ) : (
+                                        <ImageIcon className="text-gray-400" size={20} />
+                                    )}
+                                </div>
+                                <div className="flex flex-col">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        id="favicon-upload"
+                                        onChange={(e) => handleImageUpload(e, 'favicon')}
+                                    />
+                                    <label
+                                        htmlFor="favicon-upload"
+                                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 cursor-pointer inline-flex items-center gap-1 w-fit"
+                                    >
+                                        <ImageIcon size={14} /> Upload Icon
+                                    </label>
+                                    <p className="text-[10px] text-gray-500 mt-1">Recommended size: 32x32px</p>
+                                </div>
+                            </div>
+
+                            {/* Shipping Charges */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Charge (Inside Dhaka)</label>
+                                    <input
+                                        type="number"
+                                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="60"
+                                        value={settings.shipping_charge_inside_dhaka || ''}
+                                        onChange={e => setSettings({ ...settings, shipping_charge_inside_dhaka: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Charge (Outside Dhaka)</label>
+                                    <input
+                                        type="number"
+                                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="120"
+                                        value={settings.shipping_charge_outside_dhaka || ''}
+                                        onChange={e => setSettings({ ...settings, shipping_charge_outside_dhaka: e.target.value })}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -240,6 +330,7 @@ const Appearance = () => {
                                 <button
                                     onClick={() => handleRemoveBanner(index, banner.id)}
                                     className="text-red-500 hover:text-red-700 p-1"
+                                    title="Remove Banner"
                                 >
                                     <Trash2 size={18} />
                                 </button>
@@ -286,8 +377,13 @@ const Appearance = () => {
                             </div>
                             {banner.image_url && (
                                 <div className="relative h-32 rounded-lg overflow-hidden bg-gray-200">
-                                    <img src={banner.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-black/30 flex flex-col justify-center px-6 text-white">
+                                    <img
+                                        src={banner.image_url}
+                                        alt="Preview"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => e.target.style.display = 'none'}
+                                    />
+                                    <div className="absolute inset-0 bg-black/30 flex flex-col justify-center px-6 text-white text-left">
                                         <p className="font-bold text-lg">{banner.title}</p>
                                         <p className="text-sm opacity-80">{banner.subtitle}</p>
                                     </div>

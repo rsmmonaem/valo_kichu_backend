@@ -4,7 +4,7 @@
     "src": "public/coin.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-NEwG9IL0.css",
+    "file": "assets/app-BFvrfKfB.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -13,7 +13,7 @@
     ]
   },
   "resources/js/app.jsx": {
-    "file": "assets/app-DjOYIjbB.js",
+    "file": "assets/app-6V3-QXpQ.js",
     "name": "app",
     "src": "resources/js/app.jsx",
     "isEntry": true,

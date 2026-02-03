@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "../../services/api";
-import { Filter } from "lucide-react";
+import { Filter, X } from "lucide-react";
 import ProductCard from "../common/ProductCard";
 import ProductModal from "../common/ProductModal"; // ← Make sure this import is correct
 
@@ -13,6 +13,7 @@ const Shop = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showMobileFilter, setShowMobileFilter] = useState(false);
 
   // Modal state
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -40,7 +41,7 @@ const Shop = () => {
 
       const { data } = await api.get("/products", { params });
       console.log(data)
-     
+
       setProducts(data.data || []);
     } catch (error) {
       console.error("Failed to fetch products", error);
@@ -64,8 +65,23 @@ const Shop = () => {
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row gap-8">
           {/* Sidebar Filters */}
-          <div className="w-full md:w-64 flex-shrink-0">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
+          {/* Sidebar Filters */}
+          {/* Mobile Filter Overlay */}
+          <div
+            className={`fixed inset-0 z-40 bg-black/50 transition-opacity md:hidden ${showMobileFilter ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            onClick={() => setShowMobileFilter(false)}
+          />
+
+          <div className={`
+            fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:w-64 md:shadow-none md:z-auto
+            ${showMobileFilter ? 'translate-x-0' : '-translate-x-full'}
+          `}>
+            <div className="h-full overflow-y-auto p-6">
+              <div className="flex items-center justify-between mb-6 md:hidden">
+                <h2 className="text-xl font-bold">Filters</h2>
+                <button onClick={() => setShowMobileFilter(false)}><X size={24} /></button>
+              </div>
+
               <div className="flex items-center gap-2 mb-4 text-gray-800 font-bold border-b pb-2">
                 <Filter size={20} />
                 <span>Filters</span>
@@ -77,9 +93,8 @@ const Shop = () => {
                   <li>
                     <Link
                       to="/products"
-                      className={`block hover:text-primary ${
-                        !categorySlug ? "text-primary font-bold" : ""
-                      }`}
+                      className={`block hover:text-primary ${!categorySlug ? "text-primary font-bold" : ""
+                        }`}
                     >
                       All Categories
                     </Link>
@@ -88,9 +103,8 @@ const Shop = () => {
                     <li key={cat.id}>
                       <Link
                         to={`/products?category=${cat.slug}`}
-                        className={`block hover:text-primary ${
-                          categorySlug === cat.slug ? "text-primary font-bold" : ""
-                        }`}
+                        className={`block hover:text-primary ${categorySlug === cat.slug ? "text-primary font-bold" : ""
+                          }`}
                       >
                         {cat.name}
                       </Link>
@@ -118,6 +132,13 @@ const Shop = () => {
           {/* Product Grid */}
           <div className="flex-1">
             <div className="flex justify-between items-center mb-6">
+              <button
+                onClick={() => setShowMobileFilter(true)}
+                className="md:hidden flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm font-bold text-gray-700 shadow-sm"
+              >
+                <Filter size={18} /> Filters
+              </button>
+
               <h1 className="text-2xl font-bold text-gray-800">
                 {categorySlug
                   ? categories.find((c) => c.slug === categorySlug)?.name || "Products"

@@ -20,6 +20,7 @@ class Product extends Model
         'shipping_cost', 'shipping_multiply', 'loyalty_point','image','video_link','gallery_images',
         'variations', 'attributes', 'colors', 'tags',
         'status', 'is_featured', 'is_trending', 'is_discounted','specifications',
+        'meta_title', 'meta_description', 'meta_keywords', 'meta_image', // SEO Fields
     ];
 
 
@@ -69,7 +70,7 @@ class Product extends Model
 
     public function getGalleryImagesAttribute($value)
     {
-        return $value ? explode(',', $value) : [];
+        return $value ? json_decode($value, true) : [];
     }
 
     public function category()

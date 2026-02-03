@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { Star, Truck, ShieldCheck, RefreshCw, Minus, Plus, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { parseAttributes } from '../utils/parseAttributes';
 
 const ProductDetails = () => {
     const { id } = useParams();
@@ -11,8 +12,25 @@ const ProductDetails = () => {
     const { addToCart } = useCart();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
+
     const [selectedImage, setSelectedImage] = useState(0);
     const [quantity, setQuantity] = useState(1);
+
+    // Variations State
+    const [attributes, setAttributes] = useState([]);
+    const [selectedColor, setSelectedColor] = useState(null);
+    const [selectedSize, setSelectedSize] = useState(null);
+    const [selectedWeight, setSelectedWeight] = useState(null);
+
+    // Derived Data
+    const colorData = attributes.find(a => a.name.toLowerCase() === 'color')?.values.map((c, i) => ({
+        id: i,
+        name: typeof c === 'string' ? c : c.name,
+        img: c.image || null
+    })) || [];
+
+    const sizeData = attributes.find(a => a.name.toLowerCase() === 'size')?.values || [];
+    const weightData = attributes.find(a => a.name.toLowerCase() === 'weight')?.values || [];
 
     useEffect(() => {
         fetchProduct();
@@ -22,6 +40,33 @@ const ProductDetails = () => {
         try {
             const { data } = await api.get(`/products/${id}`);
             setProduct(data);
+
+            // Parse and set Initial Attributes
+            const parsedAttrs = parseAttributes(data.attributes) || [];
+            setAttributes(parsedAttrs);
+
+            // Set Defaults
+            const colors = parsedAttrs.find(a => a.name.toLowerCase() === 'color')?.values || [];
+            if (colors.length > 0) {
+                const firstColor = colors[0];
+                setSelectedColor({
+                    id: 0,
+                    name: typeof firstColor === 'string' ? firstColor : firstColor.name,
+                    img: firstColor.image || null
+                });
+                // If default color has image, set it as selected image
+                if (firstColor.image) {
+                    // Logic to find index in images array or just use it? 
+                    // For now, we will handle image preview override separately or just rely on manual click
+                }
+            }
+
+            const sizes = parsedAttrs.find(a => a.name.toLowerCase() === 'size')?.values || [];
+            if (sizes.length > 0) setSelectedSize(sizes[0]);
+
+            const weights = parsedAttrs.find(a => a.name.toLowerCase() === 'weight')?.values || [];
+            if (weights.length > 0) setSelectedWeight(weights[0]);
+
         } catch (error) {
             console.error("Failed to fetch product", error);
             toast.error("Failed to load product");
@@ -31,7 +76,13 @@ const ProductDetails = () => {
     };
 
     const handleAddToCart = () => {
-        addToCart(product, quantity);
+        const itemToAdd = {
+            ...product,
+            selectedColor,
+            selectedSize,
+            selectedWeight
+        };
+        addToCart(itemToAdd, quantity);
     };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
@@ -96,6 +147,74 @@ const ProductDetails = () => {
                                 <p className="text-gray-600 leading-relaxed">{product.description}</p>
 
                                 <div className="flex flex-col gap-2 mt-1">
+
+
+                                    {/* Color Selector */}
+                                    {colorData.length > 0 && selectedColor && (
+                                        <div className="mb-4">
+                                            <span className="font-bold text-gray-800 text-sm block mb-2">Color: {selectedColor.name}</span>
+                                            <div className="flex flex-wrap gap-3">
+                                                {colorData.map((c, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => {
+                                                            setSelectedColor(c);
+                                                            // Optional: Change main image if color has specific image
+                                                            if (c.img) {
+                                                                // You might want to update preview image state here
+                                                            }
+                                                        }}
+                                                        className={`p-1 rounded-lg border-2 transition ${selectedColor.id === c.id ? 'border-primary' : 'border-gray-200 hover:border-gray-300'}`}
+                                                    >
+                                                        {c.img ? (
+                                                            <div className="w-10 h-10 rounded overflow-hidden">
+                                                                <img src={c.img.startsWith('http') ? c.img : `/storage/products/${c.img}`} alt={c.name} className="w-full h-full object-cover" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="px-3 py-1 bg-gray-100 text-sm font-medium text-gray-700 min-w-[2rem] text-center">{c.name}</div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Size Selector */}
+                                    {sizeData.length > 0 && (
+                                        <div className="mb-4">
+                                            <span className="font-bold text-gray-800 text-sm block mb-2">Size: {selectedSize}</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                {sizeData.map((s, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => setSelectedSize(s)}
+                                                        className={`px-4 py-2 text-sm font-medium rounded-lg border transition ${selectedSize === s ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+                                                    >
+                                                        {s}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Weight Selector */}
+                                    {weightData.length > 0 && (
+                                        <div className="mb-4">
+                                            <span className="font-bold text-gray-800 text-sm block mb-2">Weight: {selectedWeight}</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                {weightData.map((w, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => setSelectedWeight(w)}
+                                                        className={`px-4 py-2 text-sm font-medium rounded-lg border transition ${selectedWeight === w ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+                                                    >
+                                                        {w}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <span className="font-bold text-gray-800 text-sm">Quantity:</span>
                                     <div className="flex items-center border border-gray-300 rounded-lg w-fit bg-white">
                                         <button
@@ -124,7 +243,13 @@ const ProductDetails = () => {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        addToCart(product, quantity);
+                                        const itemToAdd = {
+                                            ...product,
+                                            selectedColor,
+                                            selectedSize,
+                                            selectedWeight
+                                        };
+                                        addToCart(itemToAdd, quantity);
                                         navigate('/checkout');
                                     }}
                                     className="flex-1 bg-primary text-white py-3.5 rounded-xl font-bold hover:bg-primary/90 transition shadow-lg shadow-primary/30"

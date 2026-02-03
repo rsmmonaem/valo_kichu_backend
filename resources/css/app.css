@@ -2,11 +2,13 @@
 @plugin "daisyui";
 
 @theme {
-  --color-primary: var(--primary-color, #2563eb);
+  --color-primary: var(--primary-color, #ebde25);
+  --color-secondary: var(--secondary-color, #1e293b);
 }
 
 :root {
-  --primary-color: #2563eb;
+  --primary-color: #c55717;
+  --secondary-color: #1e293b;
 }
 
 @layer utilities {
@@ -18,9 +20,15 @@
     scrollbar-width: none;
   }
 }
+/* button {
+  background-color: #c55717;
+} */
 
-
-
+/* input:focus {
+  outline: none; 
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(197, 87, 23, 0.3); 
+} */
 input {
   color: #000 ;
 }
