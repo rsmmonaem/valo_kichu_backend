@@ -21,6 +21,7 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::apiResource('orders', AdminOrderController::class)->only(['index', 'show', 'update']);
     Route::apiResource('banners', BannerController::class);
+    Route::apiResource('shipping-methods', \App\Http\Controllers\Admin\ShippingMethodController::class);
     Route::post('/upload', [UploadController::class, 'upload']);
     Route::get('/settings', [SettingController::class, 'index']);
     Route::post('/settings', [SettingController::class, 'update']);

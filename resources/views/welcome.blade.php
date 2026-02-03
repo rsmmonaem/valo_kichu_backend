@@ -4,10 +4,10 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>ভালোকিছু</title>
-        @viteReactRefresh
-        @vite(['resources/css/app.css', 'resources/js/app.jsx'])
     </head>
     <body>
-        <div id="app"></div>
+        <div id="app">
+            Server Is Running... But Who Are You? Why Are You Here? Thapramo ei link a asle
+        </div>
     </body>
 </html>

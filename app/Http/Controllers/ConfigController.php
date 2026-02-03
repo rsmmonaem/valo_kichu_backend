@@ -200,6 +200,9 @@ class ConfigController extends Controller
             'payment_methods' => $paymentMethods,
             'languages' => $languages,
             'isLtr' => $isLtr,
+            'isLtr' => $isLtr,
+            'shipping_charge_inside_dhaka' => (float) BusinessSetting::getValue('shipping_charge_inside_dhaka', 60),
+            'shipping_charge_outside_dhaka' => (float) BusinessSetting::getValue('shipping_charge_outside_dhaka', 120),
         ]);
     }
 
