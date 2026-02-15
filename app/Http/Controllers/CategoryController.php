@@ -15,9 +15,38 @@ class CategoryController extends Controller
             ->with(['children' => function($q) {
                 $q->where('is_active', true);
             }])
-            ->get();
+            ->get()
+            ->map(function ($category) {
+                return $this->filterPopulatedCategory($category);
+            })
+            ->filter(function ($category) {
+                return $category !== null;
+            })
+            ->values();
             
         return response()->json($categories);
+    }
+
+    private function filterPopulatedCategory($category)
+    {
+        if ($category->children->isNotEmpty()) {
+            $filteredChildren = $category->children->map(function ($child) {
+                return $this->filterPopulatedCategory($child);
+            })->filter(function ($child) {
+                return $child !== null;
+            })->values();
+            
+            $category->setRelation('children', $filteredChildren);
+        }
+
+        $hasProducts = \App\Models\Product::where('category_id', $category->id)->where('is_active', true)->exists();
+        $hasPopulatedChildren = $category->children->isNotEmpty();
+
+        if (!$hasProducts && !$hasPopulatedChildren) {
+            return null;
+        }
+
+        return $category;
     }
 
     public function show($slug)

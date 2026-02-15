@@ -25,6 +25,7 @@ class ProductController extends Controller
             // Basic Info
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'short_description' => 'nullable|string|max:500',
             'specifications' => 'nullable|array',
 
             // Category / Brand

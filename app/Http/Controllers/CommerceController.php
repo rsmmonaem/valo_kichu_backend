@@ -180,40 +180,73 @@ class CommerceController extends Controller
 
     public function categoryList()
     {
-        $categories = Category::whereNull('parent_id')
+        $categories = Category::where('is_active', true)
+            ->whereNull('parent_id')
             ->with(['subcategories' => function ($query) {
-                $query->with('subcategories');
+                $query->where('is_active', true)->with('subcategories');
             }])
             ->get()
             ->map(function ($category) {
                 return $this->loadNestedSubcategories($category);
-            });
+            })
+            ->filter(function ($category) {
+                return $category !== null;
+            })
+            ->values();
+        return response()->json($categories);
+    }
+
+    public function categoryBar()
+    {
+        $categories = Category::where('is_active', true)
+            ->where('show_in_bar', true)
+            ->orderBy('priority', 'asc')
+            ->get();
         return response()->json($categories);
     }
 
     public function subcategoryList($id)
     {
-        $subcategories = Category::where('parent_id', $id)->with(['subcategories' => function ($query) {
-            $query->with('subcategories');
-        }])->get()->map(function ($category) {
-            return $this->loadNestedSubcategories($category);
-        });
+        $subcategories = Category::where('is_active', true)
+            ->where('parent_id', $id)
+            ->with(['subcategories' => function ($query) {
+                $query->where('is_active', true)->with('subcategories');
+            }])
+            ->get()
+            ->map(function ($category) {
+                return $this->loadNestedSubcategories($category);
+            })
+            ->filter(function ($category) {
+                return $category !== null;
+            })
+            ->values();
         return response()->json($subcategories);
     }
 
     /**
-     * Recursively load nested subcategories
+     * Recursively load nested subcategories and filter those with no products
      */
     private function loadNestedSubcategories($category)
     {
-        $category->load('subcategories');
-        
+        // First, recursively process subcategories
         if ($category->subcategories->isNotEmpty()) {
-            $category->subcategories = $category->subcategories->map(function ($subcategory) {
+            $filteredSubcategories = $category->subcategories->map(function ($subcategory) {
                 return $this->loadNestedSubcategories($subcategory);
-            });
+            })->filter(function ($sub) {
+                return $sub !== null;
+            })->values();
+            
+            $category->setRelation('subcategories', $filteredSubcategories);
         }
-        
+
+        // Check if this category has products or has subcategories that (after filtering) have products
+        $hasProducts = Product::where('category_id', $category->id)->where('is_active', true)->exists();
+        $hasPopulatedSubcategories = $category->subcategories->isNotEmpty();
+
+        if (!$hasProducts && !$hasPopulatedSubcategories) {
+            return null;
+        }
+
         return $category;
     }
 

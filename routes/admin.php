@@ -25,4 +25,8 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::post('/upload', [UploadController::class, 'upload']);
     Route::get('/settings', [SettingController::class, 'index']);
     Route::post('/settings', [SettingController::class, 'update']);
+    
+    // Mohasagor Import
+    Route::post('/mohasagor/import', [\App\Http\Controllers\ProductImportController::class, 'importProducts']);
+    Route::get('/mohasagor/debug', [\App\Http\Controllers\ProductImportController::class, 'debug']);
 });

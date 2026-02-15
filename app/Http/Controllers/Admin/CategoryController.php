@@ -27,6 +27,9 @@ class CategoryController extends Controller
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
             'meta_keywords' => 'nullable|string|max:255',
+            'show_in_bar' => 'boolean',
+            'bar_icon' => 'nullable|string',
+            'custom_icon' => 'nullable|string',
         ]);
        
         $slug = Str::slug($validated['name']);
@@ -46,6 +49,9 @@ class CategoryController extends Controller
             'meta_title' => $validated['meta_title'] ?? null,
             'meta_description' => $validated['meta_description'] ?? null,
             'meta_keywords' => $validated['meta_keywords'] ?? null,
+            'show_in_bar' => $validated['show_in_bar'] ?? false,
+            'bar_icon' => $validated['bar_icon'] ?? null,
+            'custom_icon' => $validated['custom_icon'] ?? null,
         ]);
 
         return response()->json($category, 201);
@@ -69,6 +75,9 @@ class CategoryController extends Controller
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
             'meta_keywords' => 'nullable|string|max:255',
+            'show_in_bar' => 'sometimes|boolean',
+            'bar_icon' => 'nullable|string',
+            'custom_icon' => 'nullable|string',
         ]);
 
         if (isset($validated['name'])) {

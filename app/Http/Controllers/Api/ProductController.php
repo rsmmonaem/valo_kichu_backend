@@ -20,9 +20,14 @@ class ProductController extends Controller
 
         // Filter by Category
         if ($request->has('category_slug')) {
-            $query->whereHas('category', function ($q) use ($request) {
-                $q->where('slug', $request->category_slug);
-            });
+            $category = \App\Models\Category::where('slug', $request->category_slug)->first();
+            if ($category) {
+                $categoryIds = \App\Models\Category::getAllChildCategoryIds($category->id);
+                $query->whereIn('category_id', $categoryIds);
+            } else {
+                // If category not found, return empty results
+                $query->where('category_id', 0);
+            }
         }
 
         // Filter by Brand

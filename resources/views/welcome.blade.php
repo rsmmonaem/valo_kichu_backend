@@ -7,7 +7,7 @@
     </head>
     <body>
         <div id="app">
-            Server Is Running... But Who Are You? Why Are You Here? Thapramo ei link a asle
+            Server Is Running... But Who Are You? Why Are You Here? 
         </div>
     </body>
 </html>

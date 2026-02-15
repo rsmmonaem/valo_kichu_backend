@@ -16,6 +16,9 @@ class Category extends Model
         'meta_title',
         'meta_description',
         'meta_keywords',
+        'show_in_bar',
+        'bar_icon',
+        'custom_icon',
     ];
 
     protected $casts = [
