@@ -43,7 +43,7 @@ class DatabaseSeeder extends Seeder
         );
 
         // 2. Seed Categories
-        $this->command->info('Seeding Categories...');
+        // $this->command->info('Seeding Categories...');
         // Categories with Real Images
         // $categories = [
         //     ['name' => 'Bags', 'slug' => 'bags', 'image' => 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=500&q=80'],
@@ -196,11 +196,11 @@ class DatabaseSeeder extends Seeder
         }
 
         // 5. Seed Settings
-        $this->command->info('Seeding Settings...');
-        \App\Models\BusinessSetting::updateOrCreate(
-            ['key' => 'site_logo'],
-            ['value' => 'https://raw.githubusercontent.com/rsmmonaem/rsmmonaem/main/logos/safayat_logo.png', 'type' => 'string']
-        );
+        // $this->command->info('Seeding Settings...');
+        // \App\Models\BusinessSetting::updateOrCreate(
+        //     ['key' => 'site_logo'],
+        //     ['value' => 'https://raw.githubusercontent.com/rsmmonaem/rsmmonaem/main/logos/safayat_logo.png', 'type' => 'string']
+        // );
         
         $this->command->info('Database Seeded Successfully!');
     }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Category;
 use App\Models\ProductVariation;
 use App\Models\User;
+use App\Models\BusinessSetting;
 
 class Product extends Model
 {
@@ -50,12 +51,44 @@ class Product extends Model
     protected $appends = [
         'price',
         'discount',
-        'discount_type'
+        'discount_type',
+        'image_url',
+        'gallery_image_urls',
     ];
 
     public function getPriceAttribute()
     {
         return $this->sale_price ?? $this->base_price;
+    }
+
+    /**
+     * Calculate price dynamically for a specific user (dropshipper)
+     */
+    public function getCurrentPriceForUser(User $user)
+    {
+        $retailPrice = (float) $this->base_price;
+        $costPrice = (float) $this->purchase_price;
+        
+        // Total Profit Pool available to share
+        $totalProfit = max(0, $retailPrice - $costPrice);
+        
+        // Default margins as percentage of the profit pool
+        $marginPercent = 0;
+
+        if ($user->role === 'dropshipper') {
+            $marginPercent = (float) BusinessSetting::getValue('dropshipper_global_margin', 70);
+        } elseif ($user->role === 'sub_dropshipper') {
+            $marginPercent = (float) BusinessSetting::getValue('sub_dropshipper_global_margin', 60);
+        } elseif ($user->role === 'sub_sub_dropshipper') {
+            $marginPercent = (float) BusinessSetting::getValue('sub_sub_dropshipper_global_margin', 50);
+        }
+
+        // The dropshipper buys at Retail - (Their % of the profit pool)
+        // If they sell at Retail, they earn the marginPercent share of the profit.
+        $discount = $totalProfit * ($marginPercent / 100);
+        $price = $retailPrice - $discount;
+
+        return round($price, 2);
     }
 
     public function getDiscountAttribute()
@@ -66,6 +99,30 @@ class Product extends Model
     public function getDiscountTypeAttribute()
     {
         return 'flat';
+    }
+
+    public function getImageUrlAttribute()
+    {
+        if (!$this->image) return null;
+        if (str_starts_with($this->image, 'http')) return $this->image;
+        return asset('storage/products/ss' . $this->image);
+    }
+
+    public function getGalleryImageUrlsAttribute()
+    {
+        $gallery = $this->gallery_images;
+        if (empty($gallery)) return [];
+        
+        if (is_string($gallery)) {
+            $gallery = json_decode($gallery, true);
+        }
+
+        if (!is_array($gallery)) return [];
+
+        return array_map(function($img) {
+            if (str_starts_with($img, 'http')) return $img;
+            return asset('storage/products/ss' . $img);
+        }, $gallery);
     }
 
     public function getGalleryImagesAttribute($value)

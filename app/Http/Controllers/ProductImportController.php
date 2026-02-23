@@ -17,13 +17,28 @@ class ProductImportController extends Controller
 
     public function importProducts(Request $request)
     {
-       Log::info('Product import initiated by user: ' . $request->user()->id);
-        $result = $this->importService->fetchAndProcessProducts();
-        
-        $status = $result['status'] ?? 200;
-        unset($result['status']); // Remove internal status code from response body
-        
-        return response()->json($result, $status);
+        $user = $request->user();
+        $userId = $user ? $user->id : 'unknown';
+        Log::info('Product import initiated by user: ' . $userId);
+
+        return response()->stream(function () {
+            // Disable output buffering
+            if (ob_get_level()) ob_end_clean();
+            
+            foreach ($this->importService->importStream() as $message) {
+                echo "data: " . json_encode($message) . "\n\n";
+                flush();
+            }
+            
+            echo "data: " . json_encode(['type' => 'done']) . "\n\n";
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no' // Prevent Nginx buffering
+        ]);
     }
 
     public function debug(Request $request)

@@ -16,14 +16,23 @@ class Category extends Model
         'meta_title',
         'meta_description',
         'meta_keywords',
-        'show_in_bar',
-        'bar_icon',
         'custom_icon',
+    ];
+
+    protected $appends = [
+        'image_url',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    public function getImageUrlAttribute()
+    {
+        if (!$this->image) return null;
+        if (str_starts_with($this->image, 'http')) return $this->image;
+        return asset('storage/products/ss' . $this->image);
+    }
 
     public function parent()
     {

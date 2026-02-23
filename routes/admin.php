@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\DropshippingAdminController;
 
 // Admin Routes
 Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
@@ -21,12 +22,17 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::apiResource('orders', AdminOrderController::class)->only(['index', 'show', 'update']);
     Route::apiResource('banners', BannerController::class);
-    Route::apiResource('shipping-methods', \App\Http\Controllers\Admin\ShippingMethodController::class);
     Route::post('/upload', [UploadController::class, 'upload']);
     Route::get('/settings', [SettingController::class, 'index']);
     Route::post('/settings', [SettingController::class, 'update']);
-    
-    // Mohasagor Import
-    Route::post('/mohasagor/import', [\App\Http\Controllers\ProductImportController::class, 'importProducts']);
-    Route::get('/mohasagor/debug', [\App\Http\Controllers\ProductImportController::class, 'debug']);
+
+    // Dropshipping Management
+    Route::group(['prefix' => 'dropshipping'], function () {
+        Route::get('/settings', [DropshippingAdminController::class, 'getSettings']);
+        Route::post('/settings', [DropshippingAdminController::class, 'updateSettings']);
+        Route::get('/users', [DropshippingAdminController::class, 'listDropshippers']);
+        Route::post('/users', [DropshippingAdminController::class, 'storeDropshipper']);
+        Route::get('/banned-ips', [DropshippingAdminController::class, 'listBannedIps']);
+        Route::post('/banned-ips/{id}/toggle', [DropshippingAdminController::class, 'toggleIpBan']);
+    });
 });

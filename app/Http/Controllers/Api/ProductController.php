@@ -47,14 +47,19 @@ class ProductController extends Controller
         // Sorting
         if ($request->has('sort_by')) {
             switch ($request->sort_by) {
+                case 'low_to_high':
                 case 'price_low_high':
-                    $query->orderBy('sale_price', 'asc');
+                    $query->orderByRaw('COALESCE(sale_price, base_price) ASC');
                     break;
+                case 'high_to_low':
                 case 'price_high_low':
-                    $query->orderBy('sale_price', 'desc');
+                    $query->orderByRaw('COALESCE(sale_price, base_price) DESC');
                     break;
                 case 'newest':
                     $query->orderBy('created_at', 'desc');
+                    break;
+                case 'oldest':
+                    $query->orderBy('created_at', 'asc');
                     break;
                 default:
                     $query->orderBy('created_at', 'desc');

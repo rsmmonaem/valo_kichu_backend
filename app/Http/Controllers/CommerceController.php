@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\CategoryResource;
+use App\Http\Resources\BrandResource;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
@@ -16,6 +18,7 @@ use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 
 class CommerceController extends Controller
 {
@@ -162,38 +165,26 @@ class CommerceController extends Controller
 
     public function brandList()
     {
-        $brands = Brand::all()->map(function ($brand) {
-            return [
-                'id' => $brand->id,
-                'vendor_id' => $brand->vendor_id,
-                'name' => $brand->name,
-                'slug' => $brand->slug,
-                'description' => $brand->description,
-                'image' => $brand->image_url, // Use accessor for full URL
-                'status' => $brand->status,
-                'created_at' => $brand->created_at,
-                'updated_at' => $brand->updated_at,
-            ];
-        });
-        return response()->json($brands);
+        $brands = Brand::where('status', true)->get();
+        return BrandResource::collection($brands);
     }
 
     public function categoryList()
     {
-        $categories = Category::where('is_active', true)
-            ->whereNull('parent_id')
-            ->with(['subcategories' => function ($query) {
-                $query->where('is_active', true)->with('subcategories');
-            }])
-            ->get()
-            ->map(function ($category) {
-                return $this->loadNestedSubcategories($category);
-            })
-            ->filter(function ($category) {
-                return $category !== null;
-            })
-            ->values();
-        return response()->json($categories);
+        return Cache::remember('category_list', 60 * 60, function () {
+            $categories = Category::where('is_active', true)
+                ->whereNull('parent_id')
+                ->with(['subcategories' => function ($query) {
+                    $query->where('is_active', true)->with('subcategories');
+                }])
+                ->get()
+                ->map(function ($category) {
+                    return $this->loadNestedSubcategories($category);
+                })
+                ->filter()
+                ->values();
+            return CategoryResource::collection($categories);
+        });
     }
 
     public function categoryBar()
@@ -202,7 +193,7 @@ class CommerceController extends Controller
             ->where('show_in_bar', true)
             ->orderBy('priority', 'asc')
             ->get();
-        return response()->json($categories);
+        return CategoryResource::collection($categories);
     }
 
     public function subcategoryList($id)
@@ -261,17 +252,7 @@ class CommerceController extends Controller
             return $brand->products->isNotEmpty();
         })->map(function ($brand) {
             return [
-                'brand' => [
-                    'id' => $brand->id,
-                    'vendor_id' => $brand->vendor_id,
-                    'name' => $brand->name,
-                    'slug' => $brand->slug,
-                    'description' => $brand->description,
-                    'image' => $brand->image_url,
-                    'status' => $brand->status,
-                    'created_at' => $brand->created_at,
-                    'updated_at' => $brand->updated_at,
-                ],
+                'brand' => new BrandResource($brand),
                 'products' => ProductResource::collection($brand->products)
             ];
         })->values();
@@ -308,23 +289,35 @@ class CommerceController extends Controller
         ]);
     }
 
+    // UPDATED: Limit products per category to 10
     public function categoriesWithProducts(Request $request)
     {
-        $categories = Category::with(['products' => function ($query) {
-            $query->where('is_active', true)
-                  ->with(['category', 'brand', 'reviews.user', 'images', 'variations.images']);
-        }])->get();
+        return Cache::remember('categories_with_products_limit_10', 30 * 60, function () {
+            $categories = Category::where('is_active', true)
+                ->orderBy('priority', 'asc')
+                ->get();
+            
+            $result = $categories->map(function ($category) {
+                // Efficiently load top 10 active products for this category
+                $products = Product::where('category_id', $category->id)
+                    ->where('is_active', true)
+                    ->with(['category', 'brand', 'reviews.user', 'variations.images'])
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10)
+                    ->get();
+                
+                if ($products->isEmpty()) {
+                    return null;
+                }
 
-        $result = $categories->filter(function ($category) {
-            return $category->products->isNotEmpty();
-        })->map(function ($category) {
-            return [
-                'category' => $category,
-                'products' => ProductResource::collection($category->products)
-            ];
-        })->values();
+                return [
+                    'category' => new CategoryResource($category),
+                    'products' => ProductResource::collection($products)
+                ];
+            })->filter()->values();
 
-        return response()->json($result);
+            return response()->json($result);
+        });
     }
 
     public function categoryWiseProducts($category_id, Request $request)
@@ -362,10 +355,29 @@ class CommerceController extends Controller
     {
         $productType = $request->get('type', 'all');
         $user = $request->user();
-        $products = collect();
-
+        $limit = $request->get('limit', 10);
+        $offset = $request->get('offset', 1);
         $baseQuery = Product::where('is_active', true)
             ->with(['category', 'brand', 'reviews.user', 'variations.images']);
+
+        // Cache Key based on request parameters
+        // productSections is user dependent for some types but not most.
+        // We will cache common types 
+        $cacheKey = 'product_sections_' . $productType . '_limit_' . $limit . '_offset_' . $offset . '_user_' . ($user ? $user->id : 'guest');
+
+        // Only cache for guest users or non-personalized types to avoid complexity with user-specific cache
+        if (!$user && in_array($productType, ['newarrival', 'top_products', 'best_selling', 'latest', 'featured', 'featured_deals'])) {
+             return Cache::remember($cacheKey, 30 * 60, function () use ($productType, $limit, $offset, $baseQuery) {
+                 return $this->executeProductSectionQuery($productType, null, $limit, $offset, clone $baseQuery);
+             });
+        }
+
+        return $this->executeProductSectionQuery($productType, $user, $limit, $offset, $baseQuery);
+    }
+
+    private function executeProductSectionQuery($productType, $user, $limit, $offset, $baseQuery) 
+    {
+        $products = collect();
 
         switch ($productType) {
             case 'newarrival':
@@ -432,11 +444,7 @@ class CommerceController extends Controller
                 $products = (clone $baseQuery)->orderBy('created_at', 'desc')->get();
         }
 
-        $limit = $request->get('limit', 10);
-        $offset = $request->get('offset', 1);
-        $skip = ($offset - 1) * $limit;
-
-        $paginated = $products->skip($skip)->take($limit);
+        $paginated = $products->skip(($offset - 1) * $limit)->take($limit);
         $total = $products->count();
         $totalPages = ceil($total / $limit);
 
@@ -444,8 +452,8 @@ class CommerceController extends Controller
             'type' => $productType,
             'results' => [
                 'count' => $total,
-                'limit' => $limit,
-                'offset' => $offset,
+                'limit' => (int) $limit,
+                'offset' => (int) $offset,
                 'current_page' => (int) $offset,
                 'total_pages' => (int) $totalPages,
                 'products' => ProductResource::collection($paginated)

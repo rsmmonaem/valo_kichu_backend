@@ -14,7 +14,7 @@ class CategorySeeder extends Seeder
     {
         $now = now();
 
-        // 1️⃣ Parent categories
+        // 1 Parent categories
         $parentCategories = [
             "mens-boys-fashion" => "Men's & Boys' Fashion",
             "womens-girls-fashion" => "Women’s & Girls' Fashion",

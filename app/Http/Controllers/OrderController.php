@@ -20,6 +20,7 @@ use App\Models\AppliedCoupon;
 use App\Models\Review;
 use App\Models\PaymentInfo;
 use App\Models\Wallet;
+use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 
 class OrderController extends Controller
@@ -322,6 +323,8 @@ class OrderController extends Controller
             // 'address_id' => 'required|exists:address,id',
             'tran_id' => 'nullable|string',
             'transaction_id' => 'nullable|string',
+            'referral_code' => 'nullable|string',
+            'referral_source' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -359,6 +362,12 @@ class OrderController extends Controller
             }
         }
 
+        // Referral tracking
+        $referrer = null;
+        if ($request->referral_code) {
+            $referrer = User::where('refer_code', $request->referral_code)->first();
+        }
+
         // Calculate total
         $totalPrice = 0;
         $orderItems = [];
@@ -377,7 +386,8 @@ class OrderController extends Controller
                 'product' => $product,
                 'variant' => $variant,
                 'quantity' => $quantity,
-                'price' => $itemPrice
+                'price' => $itemPrice,
+                'variation_snapshot' => $item['variation_snapshot'] ?? null,
             ];
         }
 
@@ -436,6 +446,9 @@ class OrderController extends Controller
             'exchange_rate' => 1,
             'shipping_cost' => $request->shipping_cost ?? 0, // Add shipping cost if passed
             'notes' => $request->notes ?? null,
+            'referred_by_id' => $referrer?->id,
+            'referral_source' => $request->referral_source ?? ($referrer ? 'store_link' : null),
+            'order_type' => $referrer ? 'referral' : 'direct',
         ]);
         
         // Note: I added shipping_cost and notes map because they were missing in original checkout logic 
@@ -449,9 +462,11 @@ class OrderController extends Controller
 
         // Create OrderItems
         foreach ($orderItems as $item) {
-            $variationSnapshot = $item['variant'] 
-                ? trim(($item['variant']->size ? "Size: {$item['variant']->size}, " : "") . ($item['variant']->color ? "Color: {$item['variant']->color}" : ""), ", ")
-                : null;
+            $variationSnapshot = $item['variation_snapshot'];
+            
+            if (!$variationSnapshot && $item['variant']) {
+                $variationSnapshot = trim(($item['variant']->size ? "Size: {$item['variant']->size}, " : "") . ($item['variant']->color ? "Color: {$item['variant']->color}" : ""), ", ");
+            }
 
             OrderItem::create([
                 'order_id' => $order->id,
@@ -459,6 +474,7 @@ class OrderController extends Controller
                 'product_variation_id' => $item['variant']?->id,
                 'quantity' => $item['quantity'],
                 'unit_price' => $item['price'],
+                'purchase_price' => $item['product']->purchase_price ?? 0,
                 'total_price' => $item['price'] * $item['quantity'],
                 'product_name' => $item['product']->name,
                 'variation_snapshot' => $variationSnapshot,

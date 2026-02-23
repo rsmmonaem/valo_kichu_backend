@@ -22,7 +22,7 @@ class OrderController extends Controller
 
     public function show(string $id)
     {
-        return Order::with(['items.product', 'user', 'items.variation'])->findOrFail($id);
+        return Order::with(['items.product', 'user.dropshipperProfile', 'items.variation'])->findOrFail($id);
     }
 
     public function update(Request $request, string $id)
@@ -35,7 +35,9 @@ class OrderController extends Controller
         ]);
 
         $order->update($validated);
-
+        if ($validated['status'] === 'delivered') {
+            \App\Services\WalletService::distributeCommissions($order);
+        }
         // TODO: Trigger Notification based on status change
 
         return response()->json($order);

@@ -12,7 +12,6 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\MohasagorController;
-use App\Http\Controllers\DropShipperController;
 use App\Http\Controllers\ProductImportController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -32,123 +31,13 @@ use Database\Seeders\CategorySeeder;
 |
 */
 
-
-
-// temporary route to seed categories
 Route::get('/admin/seed-categories', function () {
-
-    $now = now();
-
-    // 1️⃣ Parent categories
-    $parentCategories = [
-        "mens-boys-fashion" => "Men's & Boys' Fashion",
-        "womens-girls-fashion" => "Women’s & Girls' Fashion",
-        "kids-fashion" => "Kids' Fashion",
-        "mother-baby" => "Mother & Baby",
-        "health-beauty" => "Health & Beauty",
-        "home-appliances" => "Home Appliances",
-        "kitchen-appliances" => "Kitchen Appliances",
-        "electronics-gadget" => "Electronics Device & Gadget",
-        "watches-bags-jewellery" => "Watches, Bags, Jewellery",
-        "sports-outdoors" => "Sports & Outdoors",
-        "automotive-motorbike" => "Automotive & Motorbike",
-    ];
-
-    $parentIds = [];
-    foreach ($parentCategories as $slug => $name) {
-        DB::table('categories')->updateOrInsert(
-            ['slug' => $slug],
-            [
-                'name' => $name,
-                'parent_id' => null,
-                'is_active' => 1,
-                'priority' => 1,
-                'created_at' => $now,
-                'updated_at' => $now
-            ]
-        );
-
-        $parentIds[$slug] = DB::table('categories')->where('slug', $slug)->value('id');
-    }
-
-    // 2️⃣ Child categories
-    $childCategories = [
-        // Men’s subcategories
-        ['name'=>"Men's Clothing",'slug'=>'mens-clothing','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Men's Hoodies & Sweatshirts",'slug'=>'mens-hoodies-sweatshirts','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Men's Jeans",'slug'=>'mens-jeans','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Men's T-Shirts",'slug'=>'mens-tshirts','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Polo Shirts",'slug'=>'polo-shirts','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Casual Shirts",'slug'=>'casual-shirts','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Formal Shirts",'slug'=>'formal-shirts','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Joggers & Sweat Pants",'slug'=>'joggers-sweat-pants','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Blazers",'slug'=>'blazers','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Jackets",'slug'=>'jackets','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Men's Shoes",'slug'=>'mens-shoes','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Men's Accessories",'slug'=>'mens-accessories','parent_slug'=>'mens-boys-fashion'],
-        ['name'=>"Men's Muslim Wear",'slug'=>'mens-muslim-wear','parent_slug'=>'mens-boys-fashion'],
-
-        // Women’s subcategories
-        ['name'=>"Women’s Traditional Wear",'slug'=>'womens-traditional-wear','parent_slug'=>'womens-girls-fashion'],
-        ['name'=>"Women’s Western Wear",'slug'=>'womens-western-wear','parent_slug'=>'womens-girls-fashion'],
-        ['name'=>"Women’s Muslim Wear",'slug'=>'womens-muslim-wear','parent_slug'=>'womens-girls-fashion'],
-        ['name'=>"Women’s Innerwear",'slug'=>'womens-innerwear','parent_slug'=>'womens-girls-fashion'],
-        ['name'=>"Women’s Shoes",'slug'=>'womens-shoes','parent_slug'=>'womens-girls-fashion'],
-        ['name'=>"Women’s Bags",'slug'=>'womens-bags','parent_slug'=>'womens-girls-fashion'],
-        ['name'=>"Women’s Accessories",'slug'=>'womens-accessories','parent_slug'=>'womens-girls-fashion'],
-
-        // Kids & Baby
-        ['name'=>"Boys' Fashion",'slug'=>'boys-fashion','parent_slug'=>'kids-fashion'],
-        ['name'=>"Girls' Fashion",'slug'=>'girls-fashion','parent_slug'=>'kids-fashion'],
-        ['name'=>"Newborn Fashion",'slug'=>'newborn-fashion','parent_slug'=>'kids-fashion'],
-        ['name'=>"Baby Toys",'slug'=>'baby-toys','parent_slug'=>'mother-baby'],
-        ['name'=>"Baby Feeding",'slug'=>'baby-feeding','parent_slug'=>'mother-baby'],
-        ['name'=>"Baby Diapers",'slug'=>'baby-diapers','parent_slug'=>'mother-baby'],
-        ['name'=>"Baby Skin Care",'slug'=>'baby-skin-care','parent_slug'=>'mother-baby'],
-        ['name'=>"Baby Bedding",'slug'=>'baby-bedding','parent_slug'=>'mother-baby'],
-
-        // Electronics
-        ['name'=>"Smart Watch",'slug'=>'smart-watch','parent_slug'=>'electronics-gadget'],
-        ['name'=>"Wireless Earbuds (TWS)",'slug'=>'wireless-earbuds','parent_slug'=>'electronics-gadget'],
-        ['name'=>"Bluetooth Headphones",'slug'=>'bluetooth-headphones','parent_slug'=>'electronics-gadget'],
-        ['name'=>"Portable Bluetooth Speaker",'slug'=>'portable-bluetooth-speaker','parent_slug'=>'electronics-gadget'],
-        ['name'=>"Smartphone",'slug'=>'smartphone','parent_slug'=>'electronics-gadget'],
-        ['name'=>"Laptops",'slug'=>'laptops','parent_slug'=>'electronics-gadget'],
-        ['name'=>"Television",'slug'=>'television','parent_slug'=>'electronics-gadget'],
-        ['name'=>"Camera & DSLR",'slug'=>'camera-dslr','parent_slug'=>'electronics-gadget'],
-        ['name'=>"Routers",'slug'=>'routers','parent_slug'=>'electronics-gadget'],
-        ['name'=>"Power Bank",'slug'=>'power-bank','parent_slug'=>'electronics-gadget'],
-    ];
-
-    foreach ($childCategories as $child) {
-        DB::table('categories')->updateOrInsert(
-            ['slug' => $child['slug']],
-            [
-                'name' => $child['name'],
-                'parent_id' => $parentIds[$child['parent_slug']] ?? null,
-                'is_active' => 1,
-                'priority' => 1,
-                'created_at' => $now,
-                'updated_at' => $now
-            ]
-        );
-    }
-
+    Artisan::call('db:seed', ['--class' => 'CategorySeeder']);
     return response()->json([
         'status' => true,
-        'message' => 'All categories seeded successfully!',
-        'parents_inserted' => count($parentCategories),
-        'children_inserted' => count($childCategories)
+        'message' => 'Categories seeded successfully!',
     ]);
-
-}); // <-- No auth middleware for testing
-// Route::get('/admin/seed-categories', function () {
-//     Artisan::call('db:seed', ['--class' => 'CategorySeeder']);
-//     return response()->json([
-//         'status' => true,
-//         'message' => 'Categories seeded successfully!',
-//     ]);
-// });
+});
 
 // Delete all categories - Admin only
 Route::delete('/admin/categories/delete-all', function() {
@@ -158,7 +47,7 @@ Route::delete('/admin/categories/delete-all', function() {
 
 
 Route::get('/nai/kono/migrations', function () {
-    Artisan::call('migrate');
+
     return "Successfully done migraiton";
 });
 
@@ -173,9 +62,9 @@ Route::get('/storage-link', function () {
 });
 
 // Mohasagor route
-
-Route::post('/dropshiper/create', [DropShipperController::class, 'createDropShiper']);
-
+Route::get('/mohasagor/products', [MohasagorController::class, 'fetchData']);
+// Route::get('/mohasagor/import', [MohasagorController1::class, 'fetchAndProcessProducts']);
+Route::post('/admin/v1/mohasagor/import', [ProductImportController::class, 'importProducts']);
 // Public Routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -220,7 +109,6 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('/product-detail/{id}', [CommerceController::class, 'productDetail']);
     Route::get('/brand-list', [CommerceController::class, 'brandList']);
     Route::get('/category-list', [CommerceController::class, 'categoryList']);
-    Route::get('/category-bar', [CommerceController::class, 'categoryBar']);
     Route::get('/category-list/{id}', [CommerceController::class, 'subcategoryList']);
     Route::get('/brand-with-products', [CommerceController::class, 'brandWithProducts']);
     Route::get('/brand-wise-products/{brand_id}', [CommerceController::class, 'brandWiseProducts']);
@@ -247,9 +135,6 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('/payment/failed', [PaymentController::class, 'paymentFailed']);
     Route::get('/payment/cancel', [PaymentController::class, 'paymentCancel']);
 
-
-// Public Store Routes (New API)
-Route::get('/shipping-methods', [App\Http\Controllers\ShippingMethodController::class, 'index']);
 
 Route::post('/order/checkout', [OrderController::class, 'checkout'])->middleware('optional.auth');
     Route::middleware('auth:sanctum')->group(function () {
@@ -298,10 +183,33 @@ Route::post('/order/checkout', [OrderController::class, 'checkout'])->middleware
     });
 });
 
+// Dropshipping Secure API (External)
+Route::group(['prefix' => 'dropshipping', 'middleware' => ['ip.security', 'hmac.auth']], function () {
+    Route::get('/products', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getProducts']);
+    Route::post('/orders', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'placeOrder']);
+});
+
+// Dropshipper Panel API (Dashboard)
+Route::group(['prefix' => 'dropshipper', 'middleware' => 'auth:sanctum'], function () {
+    Route::get('/stats', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getStats']);
+    Route::get('/orders', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getOrders']);
+    Route::get('/children', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getChildren']);
+    Route::get('/wallet', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getWallet']);
+    Route::get('/products', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getProducts']);
+    Route::get('/api-keys', [\App\Http\Controllers\Api\DropshipperApiController::class, 'index']);
+    Route::post('/api-keys', [\App\Http\Controllers\Api\DropshipperApiController::class, 'generateKey']);
+    Route::put('/api-keys/{id}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'update']);
+    Route::delete('/api-keys/{id}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'destroy']);
+    
+    Route::get('/profile', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getProfile']);
+    Route::post('/profile', [\App\Http\Controllers\Api\DropshipperApiController::class, 'updateProfile']); // Use POST to support image upload via form-data
+});
+
 // Public Store Routes (New API)
 Route::prefix('v2')->group(function () {
     Route::get('/products', [\App\Http\Controllers\Api\ProductController::class, 'index']);
     Route::get('/products/{slug}', [\App\Http\Controllers\Api\ProductController::class, 'show']);
+    Route::get('/store/{refer_code}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getPublicStore']);
 });
 
 //need admin api files call

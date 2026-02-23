@@ -35,15 +35,19 @@ class Order extends Model
         'notes',
         'tracking_id',
         'address_id',
+        'address_id',
         'payment_id',
         'transaction_id',
+        'referred_by_id',
+        'referral_source',
+        'order_type',
     ];
 
     protected $casts = [
         'subtotal' => 'decimal:2',
         'shipping_cost' => 'decimal:2',
         'discount' => 'decimal:2',
-        'total_amount' => 'decimal:2',
+        'total_price' => 'decimal:2',
         'exchange_rate' => 'decimal:4',
     ];
 
@@ -65,5 +69,10 @@ class Order extends Model
     public function payment()
     {
         return $this->belongsTo(PaymentInfo::class, 'payment_id');
+    }
+
+    public function referredBy()
+    {
+        return $this->belongsTo(User::class, 'referred_by_id');
     }
 }

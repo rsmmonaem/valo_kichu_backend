@@ -45,8 +45,11 @@ class OrderResource extends JsonResource
             'products' => $this->whenLoaded('items', function() {
                 return $this->items->map(function($item) {
                     return [
+                        'product_id' => $item->product_id,
                         'product' => new ProductResource($item->product),
-                        'variant' => $item->product_variation_id,
+                        'variant_id' => $item->product_variation_id,
+                        'variation_snapshot' => $item->variation_snapshot,
+                        'product_name' => $item->product_name,
                         'quantity' => (int) $item->quantity,
                         'price' => (string) $item->unit_price,
                     ];

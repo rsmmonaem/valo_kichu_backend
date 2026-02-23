@@ -49,47 +49,19 @@ class ProductResource extends JsonResource
             'gallery_images' => $this->gallery_images,
             'attributes' => $this->attributes,
             'specifications' => $this->specifications,
-            'gallery_images' => $this->resolveGalleryImages($this->gallery_images),
-            'image' => $this->resolveImageUrl($this->image),
+            'gallery_images' => $this->gallery_image_urls,
+            'image' => $this->image_url,
         ];
     }
 
     private function resolveImageUrl($imageName)
     {
-        if (!$imageName) return null;
-        if (str_starts_with($imageName, 'http')) return $imageName;
-
-        // Common paths to check
-        $paths = [
-            'products/' . $imageName,
-            $imageName,
-            'uploads/' . $imageName,
-        ];
-
-        foreach ($paths as $path) {
-            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
-                return asset('storage/' . $path);
-            }
-        }
-
-        // Fallback to basic asset path if not found (or if Storage check fails)
-        return asset('storage/' . $imageName);
+        return $this->image_url;
     }
 
     private function resolveGalleryImages($galleryImages)
     {
-        if (empty($galleryImages)) return [];
-        
-        // Handle if it's a JSON string
-        if (is_string($galleryImages)) {
-            $galleryImages = json_decode($galleryImages, true);
-        }
-
-        if (!is_array($galleryImages)) return [];
-
-        return array_map(function($img) {
-            return $this->resolveImageUrl($img);
-        }, $galleryImages);
+        return $this->gallery_image_urls;
     }
 
     private function getVariants(): array

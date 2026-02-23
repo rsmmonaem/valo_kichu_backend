@@ -14,6 +14,16 @@ class DropShiper extends Model
         'email',
         'phone',
         'is_active',
+        'store_logo',
+        'store_banner',
+        'slogan',
+        'about_us',
+        'social_links',
+    ];
+
+    protected $casts = [
+        'social_links' => 'json',
+        'is_active' => 'boolean',
     ];
 
     public function user()
