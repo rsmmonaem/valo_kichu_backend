@@ -55,6 +55,34 @@ class DropshippingFeedController extends Controller
     }
 
     /**
+     * Get a single product with calculated price
+     */
+    public function show(Request $request, $id)
+    {
+        $user = auth()->user();
+        $product = Product::findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'description' => $product->description,
+                'short_description' => $product->short_description,
+                'base_price' => $product->base_price,
+                'your_price' => $product->getCurrentPriceForUser($user),
+                'stock' => $product->stock_quantity,
+                'images' => $product->image_url,
+                'gallery' => $product->gallery_image_urls,
+                'variations' => $product->variations,
+                'product_code' => $product->product_code,
+                'specifications' => $product->specifications,
+            ]
+        ]);
+    }
+
+    /**
      * Place an order via API
      */
     public function placeOrder(Request $request)
@@ -135,5 +163,24 @@ class DropshippingFeedController extends Controller
                 'message' => 'Failed to place order: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Check wallet balance via API
+     */
+    public function getBalance()
+    {
+        $user = auth()->user();
+        $balance = \App\Models\WalletTransaction::where('user_id', $user->id)
+            ->where('type', 'credit')
+            ->sum('amount');
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'balance' => $balance,
+                'currency' => 'BDT'
+            ]
+        ]);
     }
 }

@@ -185,7 +185,10 @@ Route::post('/order/checkout', [OrderController::class, 'checkout'])->middleware
 
 // Dropshipping Secure API (External)
 Route::group(['prefix' => 'dropshipping', 'middleware' => ['ip.security', 'hmac.auth']], function () {
+    Route::get('/', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getProducts']);
     Route::get('/products', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getProducts']);
+    Route::get('/products/{id}', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'show']);
+    Route::get('/balance', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getBalance']);
     Route::post('/orders', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'placeOrder']);
 });
 

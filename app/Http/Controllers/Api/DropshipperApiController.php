@@ -53,9 +53,9 @@ class DropshipperApiController extends Controller
     public function update(Request $request, $id)
     {
         $key = auth()->user()->apiKeys()->findOrFail($id);
-        $key->update($request->only('is_active', 'name'));
+        $key->update($request->only('is_active', 'name', 'settings'));
         
-        return response()->json(['message' => 'API Key updated']);
+        return response()->json(['message' => 'API Key updated', 'data' => $key]);
     }
 
     public function destroy($id)
