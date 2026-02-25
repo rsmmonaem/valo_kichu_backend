@@ -12,7 +12,7 @@ class CategoryController extends Controller
     {
         $categories = Category::where('is_active', true)
             ->whereNull('parent_id')
-            ->with(['children' => function($q) {
+            ->with(['children' => function ($q) {
                 $q->where('is_active', true);
             }])
             ->get()
@@ -23,7 +23,7 @@ class CategoryController extends Controller
                 return $category !== null;
             })
             ->values();
-            
+
         return response()->json($categories);
     }
 
@@ -35,7 +35,7 @@ class CategoryController extends Controller
             })->filter(function ($child) {
                 return $child !== null;
             })->values();
-            
+
             $category->setRelation('children', $filteredChildren);
         }
 
@@ -53,5 +53,12 @@ class CategoryController extends Controller
     {
         $category = Category::where('slug', $slug)->where('is_active', true)->firstOrFail();
         return response()->json($category);
+    }
+    public function categoryBars()
+    {
+        $categories = Category::where('is_active', true)->where('show_in_bar', true)->orderBy('priority','asc')->get();
+            // dd($categories->toJson());
+
+        return response()->json($categories);
     }
 }

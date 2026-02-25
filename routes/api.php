@@ -16,6 +16,7 @@ use App\Http\Controllers\ProductImportController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Database\Seeders\CategorySeeder;
+use App\Http\Controllers\ShippingMethodController;
 
 
 
@@ -91,6 +92,9 @@ Route::group(['prefix' => 'v1'], function () {
     // Config - Public (optional authentication: validates token if present, allows access if not)
     Route::get('/config/app-config', [ConfigController::class, 'appConfig'])->middleware('optional.auth');
 
+    Route::get('/shipping-methods', [ShippingMethodController::class, 'index']);
+
+    Route::get('/category-bars', [CategoryController::class, 'categoryBars']);
 
     // Authentication - Public
     Route::post('/auth/send-verification', [AuthController::class, 'sendVerification'])->middleware('optional.auth');

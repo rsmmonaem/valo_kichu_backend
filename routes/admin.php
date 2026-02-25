@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\DropshippingAdminController;
+use App\Http\Controllers\Admin\ShippingMethodController;
 
 // Admin Routes
 Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
@@ -22,6 +23,7 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::apiResource('orders', AdminOrderController::class)->only(['index', 'show', 'update']);
     Route::apiResource('banners', BannerController::class);
+    Route::apiResource('shipping-methods', ShippingMethodController::class);
     Route::post('/upload', [UploadController::class, 'upload']);
     Route::get('/settings', [SettingController::class, 'index']);
     Route::post('/settings', [SettingController::class, 'update']);
