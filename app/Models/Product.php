@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Category;
 use App\Models\ProductVariation;
@@ -105,7 +106,16 @@ class Product extends Model
     {
         if (!$this->image) return null;
         if (str_starts_with($this->image, 'http')) return $this->image;
-        return asset('storage/products/ss' . $this->image);
+        
+        $imageName = $this->image;
+        // Check if the file exists on disk
+        if (!Storage::disk('public')->exists('products/' . $imageName)) {
+            if (Storage::disk('public')->exists('products/ss' . $imageName)) {
+                $imageName = 'ss' . $imageName;
+            }
+        }
+
+        return Storage::disk('public')->url('products/' . $imageName);
     }
 
     public function getGalleryImageUrlsAttribute()
@@ -121,7 +131,15 @@ class Product extends Model
 
         return array_map(function($img) {
             if (str_starts_with($img, 'http')) return $img;
-            return asset('storage/products/ss' . $img);
+            
+            $imageName = $img;
+            if (!Storage::disk('public')->exists('products/' . $imageName)) {
+                if (Storage::disk('public')->exists('products/ss' . $imageName)) {
+                    $imageName = 'ss' . $imageName;
+                }
+            }
+            
+            return Storage::disk('public')->url('products/' . $imageName);
         }, $gallery);
     }
 

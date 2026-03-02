@@ -19,10 +19,12 @@ class Category extends Model
         'show_in_bar',  
         'bar_icon', 
         'custom_icon',
+        'show_shop_by_category',
     ];
 
     protected $appends = [
         'image_url',
+        'custom_icon_url',
     ];
 
     protected $casts = [
@@ -33,7 +35,15 @@ class Category extends Model
     {
         if (!$this->image) return null;
         if (str_starts_with($this->image, 'http')) return $this->image;
-        return asset('storage/products/ss' . $this->image);
+        $path = str_starts_with($this->image, 'products/') ? $this->image : 'products/' . $this->image;
+        return asset('storage/' . $path);
+    }
+
+    public function getCustomIconUrlAttribute()
+    {
+        if (!$this->custom_icon) return null;
+        if (str_starts_with($this->custom_icon, 'http')) return $this->custom_icon;
+        return asset('storage/' . $this->custom_icon);
     }
 
     public function parent()

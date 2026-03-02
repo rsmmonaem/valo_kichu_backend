@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Database\Seeders\CategorySeeder;
 use App\Http\Controllers\ShippingMethodController;
+use App\Http\Controllers\Api\OrderInvoiceController;
 
 
 
@@ -59,6 +60,19 @@ Route::get('/storage-link', function () {
     return response()->json([
         'status' => true,
         'message' => 'Successfully done storage link'
+    ]);
+});
+
+Route::get('/reset-database', function () {
+    // Reset all migrations (drops all tables)
+    Artisan::call('migrate:fresh'); // This clears all data
+
+    // Optionally run seeder after reset
+    Artisan::call('db:seed'); // Seeds all data
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Database cleared, migrations run, and data seeded successfully'
     ]);
 });
 
@@ -138,6 +152,10 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('/payment/success', [PaymentController::class, 'paymentSuccess']);
     Route::get('/payment/failed', [PaymentController::class, 'paymentFailed']);
     Route::get('/payment/cancel', [PaymentController::class, 'paymentCancel']);
+
+    // Invoice routes - Public but linked to order flows
+    Route::get('/invoice/{orderId}', [OrderInvoiceController::class, 'download']);
+    Route::post('/orders/{orderId}/send-invoice', [OrderInvoiceController::class, 'sendInvoice']);
 
 
 Route::post('/order/checkout', [OrderController::class, 'checkout'])->middleware('optional.auth');

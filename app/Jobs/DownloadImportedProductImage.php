@@ -148,14 +148,14 @@ class DownloadImportedProductImage implements ShouldQueue
             // Save to public disk (storage/app/public/products/)
             if (Storage::disk('public')->exists($path)) {
                 Log::info("Job: Image already optimized exists: {$name}");
-                return $originalName;
+                return $name;
             }
 
             $saved = Storage::disk('public')->put($path, (string) $encoded);
             
             if ($saved) {
                 Log::info("Job Success: Saved locally: {$path}");
-                return $originalName;
+                return $name;
             } else {
                 Log::error("Job Error: Failed to write file to disk for: {$path}");
                 return null;

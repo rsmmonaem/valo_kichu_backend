@@ -44,13 +44,11 @@ class ProductResource extends JsonResource
             'variants' => $this->getVariants(),
             'reviews' => $this->getReviewsSummary(),
             'attributes' => $this->attributes,
-            'attributes' => $this->attributes,
-            'specifications' => $this->specifications,
-            'gallery_images' => $this->gallery_images,
-            'attributes' => $this->attributes,
             'specifications' => $this->specifications,
             'gallery_images' => $this->gallery_image_urls,
-            'image' => $this->image_url,
+            'image' => $this->image,
+            'image_url' => $this->image_url,
+            'category' => new CategoryResource($this->whenLoaded('category')),
         ];
     }
 
