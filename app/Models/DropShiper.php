@@ -26,8 +26,26 @@ class DropShiper extends Model
         'is_active' => 'boolean',
     ];
 
+    protected $appends = ['store_logo_url', 'store_banner_url'];
+
     public function user()
     {
         return $this->belongsTo(User::class,'customer_id');
+    }
+
+    public function getStoreLogoUrlAttribute()
+    {
+        if (!$this->store_logo) {
+            return null;
+        }
+        return asset('storage/stores/' . $this->store_logo);
+    }
+
+    public function getStoreBannerUrlAttribute()
+    {
+        if (!$this->store_banner) {
+            return null;
+        }
+        return asset('storage/stores/' . $this->store_banner);
     }
 }

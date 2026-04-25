@@ -24,6 +24,18 @@ class OrderInvoiceController extends Controller
     }
 
     /**
+     * Preview the invoice PDF.
+     */
+    public function preview($orderId)
+    {
+        $order = Order::with('items')->where('id', $orderId)->orWhere('order_number', $orderId)->firstOrFail();
+
+        $pdf = Pdf::loadView('pdf.invoice', compact('order'));
+
+        return $pdf->stream('invoice-' . $order->order_number . '.pdf');
+    }
+
+    /**
      * Send the invoice PDF via email.
      */
     public function sendInvoice($orderId, Request $request)

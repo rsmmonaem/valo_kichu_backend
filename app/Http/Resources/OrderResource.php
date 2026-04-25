@@ -30,12 +30,20 @@ class OrderResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'order_number' => $this->order_number,
+            'name' => $this->name,
+            'subtotal' => (float) $this->subtotal,
+            'shipping_cost' => (float) $this->shipping_cost,
+            'discount' => (float) $this->discount,
             'total_price' => (float) $this->total_price,
             'status' => $statusMap[$this->status] ?? 'Pending',
             'payment_status' => $paymentStatusMap[$this->payment_status] ?? 'Pending',
             'transaction_id' => $this->transaction_id,
             'transaction_account_number' => $this->payment?->transaction_id, // Map from payment relation
             'payment_method' => $this->payment_method,
+            'shipping_address' => $this->shipping_address,
+            'contact_number' => $this->contact_number,
+            'notes' => $this->notes,
             'user' => $this->whenLoaded('user', function() {
                 return new UserResource($this->user);
             }),
@@ -52,6 +60,7 @@ class OrderResource extends JsonResource
                         'product_name' => $item->product_name,
                         'quantity' => (int) $item->quantity,
                         'price' => (string) $item->unit_price,
+                        'unit_price' => (string) $item->unit_price,
                     ];
                 });
             }),

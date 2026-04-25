@@ -7,6 +7,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+
 Route::fallback(function (\Illuminate\Http\Request $request) {
     if ($request->is('api/*')) {
         return response()->json([
@@ -21,6 +22,9 @@ Route::get('/fixall', function () {
 
     Artisan::call('optimize:clear');
     Artisan::call('queue:restart');
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('view:clear');
 
     return response()->json([
         'status' => 'success',

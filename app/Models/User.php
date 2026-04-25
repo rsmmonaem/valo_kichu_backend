@@ -37,7 +37,9 @@ class User extends Authenticatable
         'email_verified_at',
         'password',
         "refer_code",
-        "refer_by"
+        "refer_by",
+        "is_approved",
+        "dropshipper_margin"
     ];
 
     /**
@@ -72,6 +74,7 @@ class User extends Authenticatable
             'role' => 'string', //enum: admin, sub_admin, user
             'is_active' => 'boolean', //required
             'is_verified' => 'boolean',
+            'is_approved' => 'boolean',
             "refer_code" => "string",
             "refer_by" => "integer", // relation with user
             'phone_number_verified_at' => 'datetime',

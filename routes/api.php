@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Database\Seeders\CategorySeeder;
 use App\Http\Controllers\ShippingMethodController;
 use App\Http\Controllers\Api\OrderInvoiceController;
+use App\Http\Controllers\Api\DropshipperApiController;
 
 
 
@@ -155,11 +156,12 @@ Route::group(['prefix' => 'v1'], function () {
 
     // Invoice routes - Public but linked to order flows
     Route::get('/invoice/{orderId}', [OrderInvoiceController::class, 'download']);
+    Route::get('/invoice/{orderId}/preview', [OrderInvoiceController::class, 'preview']);
     Route::post('/orders/{orderId}/send-invoice', [OrderInvoiceController::class, 'sendInvoice']);
 
 
 Route::post('/order/checkout', [OrderController::class, 'checkout'])->middleware('optional.auth');
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth:sanctum', 'dropshipper.approved')->group(function () {
         // Auth routes
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/user', [AuthController::class, 'userInfo']);
@@ -212,23 +214,34 @@ Route::group(['prefix' => 'dropshipping', 'middleware' => ['ip.security', 'hmac.
     Route::get('/products/{id}', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'show']);
     Route::get('/balance', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getBalance']);
     Route::post('/orders', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'placeOrder']);
+    Route::get('/tracking', [DropshipperApiController::class, 'getTrackingInfo']);
+    Route::post('/cancel-order', [DropshipperApiController::class, 'cancelOrder']);
+    Route::get('/shipping-methods', [ShippingMethodController::class, 'index']);
+
+
 });
 
 // Dropshipper Panel API (Dashboard)
-Route::group(['prefix' => 'dropshipper', 'middleware' => 'auth:sanctum'], function () {
+Route::group(['prefix' => 'dropshipper', 'middleware' => ['auth:sanctum', 'dropshipper.approved']], function () {
     Route::get('/stats', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getStats']);
     Route::get('/orders', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getOrders']);
     Route::get('/children', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getChildren']);
     Route::get('/wallet', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getWallet']);
+    Route::get('/withdrawals-history', [DropshipperApiController::class, 'getWithdrawalHistory']);
+    Route::post('/withdrawal-requests', [DropshipperApiController::class, 'getWithdrawalRequests']);
     Route::get('/products', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getProducts']);
     Route::get('/api-keys', [\App\Http\Controllers\Api\DropshipperApiController::class, 'index']);
     Route::post('/api-keys', [\App\Http\Controllers\Api\DropshipperApiController::class, 'generateKey']);
     Route::put('/api-keys/{id}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'update']);
     Route::delete('/api-keys/{id}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'destroy']);
-    
-    Route::get('/profile', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getProfile']);
-    Route::post('/profile', [\App\Http\Controllers\Api\DropshipperApiController::class, 'updateProfile']); // Use POST to support image upload via form-data
+    Route::get('/profile', [DropshipperApiController::class, 'getProfile']);
+    // Route::post('/profile', [\App\Http\Controllers\Api\DropshipperApiController::class, 'updateProfile']); // Use POST to support image upload via form-data
+    Route::match(['post','put'], '/profile', [DropshipperApiController::class, 'updateProfile'])
+    ->middleware('parse.multipart.put');
 });
+// Route::get('/dropshipper/tracking', 
+//     [DropshipperApiController::class, 'getTrackingInfo']
+// )->middleware(['api', 'dropshipper.approved']);
 
 // Public Store Routes (New API)
 Route::prefix('v2')->group(function () {

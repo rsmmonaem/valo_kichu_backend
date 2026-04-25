@@ -57,6 +57,7 @@ class AuthController extends Controller
             'refer_code' => Str::random(10),
             'is_active' => true,
             'is_verified' => false, // User needs to verify
+            'is_approved' => !in_array($request->role ?? 'customer', ['dropshipper', 'sub_dropshipper', 'sub_sub_dropshipper']),
         ];
 
         // Multi-level Dropshipping Referral Logic
@@ -137,6 +138,13 @@ class AuthController extends Controller
         $user->refresh();
         if (! $user->is_active) {
             return response()->json(['error' => 'This account is inactive.'], 400);
+        }
+
+        if ($user->isAnyDropshipper() && ! $user->is_approved) {
+            return response()->json([
+                'error' => 'Your dropshipper account is pending admin approval.',
+                'is_approved' => false
+            ], 403);
         }
 
         if (! $user->is_verified) {
