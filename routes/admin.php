@@ -46,5 +46,7 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
         Route::post('/users/{id}/toggle-status', [DropshippingAdminController::class, 'toggleUserStatus']);
         Route::get('/banned-ips', [DropshippingAdminController::class, 'listBannedIps']);
         Route::post('/banned-ips/{id}/toggle', [DropshippingAdminController::class, 'toggleIpBan']);
+        Route::get('/users/{id}/wallet', [DropshippingAdminController::class, 'getUserWallet']);
+        Route::get('/users/{id}/due-invoice', [DropshippingAdminController::class, 'generateDueInvoice']);
     });
 });

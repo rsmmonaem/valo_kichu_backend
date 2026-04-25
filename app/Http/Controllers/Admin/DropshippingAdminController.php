@@ -7,6 +7,11 @@ use App\Models\BusinessSetting;
 use App\Models\User;
 use App\Models\IpLog;
 use App\Models\WalletTransaction;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\Withdraw;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -239,4 +244,163 @@ class DropshippingAdminController extends Controller
             'is_active' => $user->is_active
         ]);
     }
+
+    /**
+     * Get user wallet details and transactions
+     */
+    public function getUserWallet($id)
+    {
+        $user = User::findOrFail($id);
+
+        // Exact logic from DropshipperApiController::getStats()
+        $orders = Order::where('user_id', $user->id)
+            ->where('status', 'delivered')
+            ->where('payment_method', 'cod')
+            ->get();
+        $orderitems = OrderItem::whereIn('order_id', $orders->pluck('id'))->get();
+
+        $profit = 0;
+        foreach ($orderitems as $item) {
+            $product = Product::find($item->product_id);
+            if ($product) {
+                $price = $product->getCurrentPriceForUser($user);
+                $PerProductProfit = $item->unit_price - $price;
+                $profit += $PerProductProfit * $item->quantity;
+            }
+        }
+
+        $totalWithdrawn = Withdraw::where('user_id', $user->id)
+            ->whereIn('status', ['approved', 'pending'])
+            ->sum('amount');
+
+        $totalProfit = $profit - $totalWithdrawn;
+
+        // Due Amount logic from getStats()
+        $orderDue = Order::where('user_id', $user->id)
+            ->where('status', 'delivered')
+            ->where('payment_method', 'online')
+            ->get();
+        $orderitemsDue = OrderItem::whereIn('order_id', $orderDue->pluck('id'))->get();
+        
+        $dueAmount = 0;
+        foreach ($orderitemsDue as $item) {
+            $product = Product::find($item->product_id);
+            if ($product) {
+                $price = $product->getCurrentPriceForUser($user);
+                $dueAmount += $price * $item->quantity;
+            }
+        }
+
+        // Other stats
+        $activeOrders = Order::where('user_id', $user->id)
+            ->whereIn('status', ['pending', 'processing'])
+            ->count();
+        $subDropshippers = $user->children()->count();
+
+        // Transactions (Unified list)
+        $walletTransactions = WalletTransaction::where('user_id', $user->id)
+            ->latest()
+            ->get()
+            ->map(function ($t) {
+                return [
+                    'id' => $t->id,
+                    'type' => $t->type, // credit/debit
+                    'amount' => (float)$t->amount,
+                    'description' => $t->description,
+                    'created_at' => $t->created_at,
+                    'source' => 'Wallet'
+                ];
+            });
+
+        $withdrawals = Withdraw::where('user_id', $user->id)
+            ->latest()
+            ->get()
+            ->map(function ($w) {
+                return [
+                    'id' => $w->id,
+                    'type' => 'debit',
+                    'amount' => (float)$w->amount,
+                    'description' => 'Withdrawal Request',
+                    'created_at' => $w->created_at,
+                    'source' => 'Withdrawal',
+                    'status' => $w->status
+                ];
+            });
+
+        $transactions = $walletTransactions->concat($withdrawals)->sortByDesc('created_at')->values();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->first_name . ' ' . $user->last_name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'refer_code' => $user->refer_code
+                ],
+                'stats' => [
+                    'total_profit' => (float)$totalProfit,
+                    'due_amount' => (float)$dueAmount,
+                    'total_withdrawn' => (float)$totalWithdrawn,
+                    'total_earned' => (float)$profit,
+                    'active_orders' => $activeOrders,
+                    'sub_dropshippers' => $subDropshippers
+                ],
+                'transactions' => $transactions
+            ]
+        ]);
+    }
+
+    /**
+     * Generate PDF invoice for due amount
+     */
+    public function generateDueInvoice($id)
+    {
+        $user = User::findOrFail($id);
+
+        $dueOrders = Order::where('user_id', $user->id)
+            ->whereIn('status', ['delivered', 'Delivered', 'DELIVERED'])
+            ->whereIn('payment_method', ['online', 'Online', 'ONLINE'])
+            ->with('items')
+            ->get();
+
+        $dueDetails = [];
+        $totalDue = 0;
+
+        foreach ($dueOrders as $order) {
+            foreach ($order->items as $item) {
+                $product = Product::find($item->product_id);
+                if ($product) {
+                    $basePrice = $product->getCurrentPriceForUser($user);
+                    $lineTotal = $basePrice * $item->quantity;
+                    $dueDetails[] = [
+                        'order_number' => $order->order_number,
+                        'product_name' => $item->product_name,
+                        'quantity' => $item->quantity,
+                        'base_price' => (float)$basePrice,
+                        'line_total' => (float)$lineTotal,
+                        'date' => $order->created_at->format('Y-m-d')
+                    ];
+                    $totalDue += $lineTotal;
+                }
+            }
+        }
+
+        if (count($dueDetails) === 0) {
+            return response()->json(['message' => 'No due orders found'], 404);
+        }
+
+        $pdf = Pdf::loadView('pdf.due_invoice', [
+            'user' => $user,
+            'details' => $dueDetails,
+            'total_due' => (float)$totalDue,
+            'invoice_no' => 'DUE-' . strtoupper(Str::random(8)),
+            'date' => now()->format('Y-m-d')
+        ]);
+
+        return $pdf->stream('due-invoice-' . $user->id . '.pdf');
+    }
+
 }
+
