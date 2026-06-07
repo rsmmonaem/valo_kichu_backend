@@ -12,6 +12,7 @@ use App\Models\Address;
 use App\Services\OtpService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -52,10 +53,27 @@ class AuthController extends Controller
             'last_name' => $request->last_name,
             'gender' => $request->gender,
             'date_of_birth' => $request->date_of_birth,
-            'role' => 'customer',
+            'role' => $request->role ?? 'customer',
+            'refer_code' => Str::random(10),
             'is_active' => true,
             'is_verified' => false, // User needs to verify
+            'is_approved' => !in_array($request->role ?? 'customer', ['dropshipper', 'sub_dropshipper', 'sub_sub_dropshipper']),
         ];
+
+        // Multi-level Dropshipping Referral Logic
+        if ($request->filled('referral_code')) {
+            $parent = User::where('refer_code', $request->referral_code)->first();
+            if ($parent) {
+                $userData['refer_by'] = $parent->id;
+                
+                // Automatically assign dropshipper roles if parent is a dropshipper
+                if ($parent->role === 'dropshipper') {
+                    $userData['role'] = 'sub_dropshipper';
+                } elseif ($parent->role === 'sub_dropshipper') {
+                    $userData['role'] = 'sub_sub_dropshipper';
+                }
+            }
+        }
 
         // Only include email if it's provided
         if ($request->filled('email')) {
@@ -120,6 +138,13 @@ class AuthController extends Controller
         $user->refresh();
         if (! $user->is_active) {
             return response()->json(['error' => 'This account is inactive.'], 400);
+        }
+
+        if ($user->isAnyDropshipper() && ! $user->is_approved) {
+            return response()->json([
+                'error' => 'Your dropshipper account is pending admin approval.',
+                'is_approved' => false
+            ], 403);
         }
 
         if (! $user->is_verified) {

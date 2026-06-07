@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 
 use App\Models\Category;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class CategoryController extends Controller
 {
@@ -27,6 +28,10 @@ class CategoryController extends Controller
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
             'meta_keywords' => 'nullable|string|max:255',
+            'show_in_bar' => 'boolean',
+            'bar_icon' => 'nullable|string',
+            'custom_icon' => 'nullable|string',
+            'show_shop_by_category' => 'boolean',
         ]);
        
         $slug = Str::slug($validated['name']);
@@ -46,7 +51,15 @@ class CategoryController extends Controller
             'meta_title' => $validated['meta_title'] ?? null,
             'meta_description' => $validated['meta_description'] ?? null,
             'meta_keywords' => $validated['meta_keywords'] ?? null,
+            'show_in_bar' => $validated['show_in_bar'] ?? false,
+            'bar_icon' => $validated['bar_icon'] ?? null,
+            'custom_icon' => $validated['custom_icon'] ?? null,
+            'show_shop_by_category' => $validated['show_shop_by_category'] ?? false,
         ]);
+
+        Cache::forget('category_list');
+        Cache::forget('category_bars');
+        Cache::forget('categories_with_products_limit_10');
 
         return response()->json($category, 201);
     }
@@ -58,6 +71,7 @@ class CategoryController extends Controller
 
     public function update(Request $request, string $id)
     {
+        // dd($request->all());
         $category = Category::findOrFail($id);
 
         $validated = $request->validate([
@@ -69,6 +83,10 @@ class CategoryController extends Controller
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
             'meta_keywords' => 'nullable|string|max:255',
+            'show_in_bar' => 'sometimes|boolean',
+            'bar_icon' => 'nullable|string',
+            'custom_icon' => 'nullable|string',
+            'show_shop_by_category' => 'sometimes|boolean',
         ]);
 
         if (isset($validated['name'])) {
@@ -78,6 +96,10 @@ class CategoryController extends Controller
 
         $category->update($validated);
 
+        Cache::forget('category_list');
+        Cache::forget('category_bars');
+        Cache::forget('categories_with_products_limit_10');
+
         return response()->json($category);
     }
 
@@ -85,6 +107,11 @@ class CategoryController extends Controller
     {
         $category = Category::findOrFail($id);
         $category->delete();
+
+        Cache::forget('category_list');
+        Cache::forget('category_bars');
+        Cache::forget('categories_with_products_limit_10');
+
         return response()->json(null, 204);
     }
 }

@@ -3,7 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-
+use App\Http\Middleware\CheckApprovedDropshipper;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'optional.auth' => \App\Http\Middleware\OptionalAuth::class,
             'parse.multipart.put' => \App\Http\Middleware\ParseMultipartPut::class,
+            'hmac.auth' => \App\Http\Middleware\HmacAuthMiddleware::class,
+            'ip.security' => \App\Http\Middleware\IpSecurityMiddleware::class,
+            'dropshipper.approved' => CheckApprovedDropshipper::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

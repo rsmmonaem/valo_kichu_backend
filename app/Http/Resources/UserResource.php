@@ -11,6 +11,7 @@ class UserResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'name' => $this->first_name . ' ' . $this->last_name,
             'email' => $this->email,
             'phone_number' => $this->phone_number,
             'first_name' => $this->first_name,
@@ -26,6 +27,11 @@ class UserResource extends JsonResource
             'is_verified' => $this->is_verified ?? false,
             'phone_number_verified_at' => $this->phone_number_verified_at?->toDateTimeString(),
             'email_verified_at' => $this->email_verified_at?->toDateTimeString(),
+            'refer_code' => $this->refer_code,
+            'refer_by' => $this->refer_by,
+            'is_any_dropshipper' => $this->isAnyDropshipper(),
+            'store_name' => $this->store_name, // Using the accessor I just added
+            'dropshipper_profile' => $this->whenLoaded('dropshipperProfile'),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];

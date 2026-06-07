@@ -2,173 +2,213 @@
 
 namespace App\Services;
 
+use App\Jobs\DownloadImportedProductImage;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Image as ImageModel;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class MohasagorImportService
 {
     protected array $categoryCache = [];
     protected $existingCategories;
+    protected $baseUrl = 'https://mohasagor.com.bd/api/reseller/product';
 
     public function __construct()
     {
         $this->existingCategories = Category::all();
     }
 
+    /**
+     * Stream the import process, yielding status updates.
+     */
+    public function importStream()
+    {
+        Log::info('Starting Mohasagor product import stream');
+        yield ['type' => 'info', 'message' => 'Initiating import process...'];
+
+        $page = 1;
+        $lastPage = 1;
+
+        // First request to determine total pages and process first batch
+        $response = $this->fetchPage($page);
+
+        if (!$response['success']) {
+            yield ['type' => 'error', 'message' => 'Failed to connect to API: ' . $response['message']];
+            return;
+        }
+
+        if (isset($response['pagination'])) {
+            $lastPage = $response['pagination']['last_page'] ?? 1;
+            yield ['type' => 'info', 'message' => "Found {$response['pagination']['total']} products across {$lastPage} pages."];
+        }
+
+        do {
+            yield ['type' => 'progress', 'page' => $page, 'total_pages' => $lastPage, 'message' => "Processing Page {$page}/{$lastPage}..."];
+
+            if ($page > 1) {
+                // Fetch subsequent pages
+                $response = $this->fetchPage($page);
+                if (!$response['success']) {
+                    yield ['type' => 'error', 'message' => "Failed to fetch page {$page}. Skipping."];
+                    $page++;
+                    continue;
+                }
+            }
+
+            $products = $response['products'] ?? [];
+            if (empty($products)) {
+                yield ['type' => 'warning', 'message' => "No products found on page {$page}."];
+            } else {
+                $stats = $this->processBatch($products);
+                yield [
+                    'type' => 'batch_stats',
+                    'page' => $page,
+                    'created' => $stats['created'],
+                    'updated' => $stats['updated'],
+                    'failed' => $stats['failed'],
+                    'skipped' => $stats['skipped'],
+                    'message' => "Page {$page}: Created {$stats['created']}, Updated {$stats['updated']}, Skipped {$stats['skipped']}"
+                ];
+            }
+
+            $page++;
+            // Optional: small delay to prevent rate limiting
+            // usleep(100000); 
+
+        } while ($page <= $lastPage);
+
+        yield ['type' => 'done', 'message' => 'Import process completed successfully.'];
+    }
+
+    /**
+     * Backward compatibility wrapper (though controller should use stream)
+     */
     public function fetchAndProcessProducts()
     {
-        Log::info('Starting Mohasagor product import service');
+        $stats = ['total' => 0, 'created' => 0, 'failed' => 0];
+        foreach ($this->importStream() as $update) {
+            // consuming the generator
+            if (isset($update['type']) && $update['type'] === 'batch_stats') {
+                $stats['created'] += $update['created'] ?? 0;
+            }
+        }
+        return ['success' => true, 'message' => 'Import completed via stream wrapper', 'stats' => $stats];
+    }
 
+    protected function fetchPage($page)
+    {
         try {
-            // Step 1: Fetch data from Mohasagor API
-            Log::info('Fetching products from Mohasagor API');
-
             $response = Http::withHeaders([
                 'api-key' => env('MOHASAGOR_API_KEY'),
                 'secret-key' => env('MOHASAGOR_API_SECRET'),
                 'Accept' => 'application/json',
-            ])->get('https://mohasagor.com.bd/api/reseller/product');
+            ])->get($this->baseUrl, ['page' => $page]);
 
             if ($response->failed()) {
-                Log::error('Mohasagor API request failed: ' . $response->body());
-                return [
-                    'success' => false,
-                    'message' => 'Mohasagor API request failed',
-                    'error' => $response->body(),
-                    'status' => $response->status()
-                ];
+                Log::error("Mohasagor API request failed for page {$page}: " . $response->body());
+                return ['success' => false, 'message' => $response->status()];
             }
 
-            $responseBody = $this->cleanResponse($response->body());
-            $apiData = json_decode($responseBody, true);
+            $body = $this->cleanResponse($response->body());
+            $data = json_decode($body, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                return [
-                    'success' => false,
-                    'message' => 'Failed to decode API response',
-                    'error' => json_last_error_msg(),
-                    'status' => 500
-                ];
+                return ['success' => false, 'message' => 'JSON Decode Error'];
             }
 
-            if (!isset($apiData['products'])) {
-                return [
-                    'success' => false,
-                    'message' => 'No products found in API response structure',
-                    'data' => $apiData,
-                    'status' => 200
-                ];
-            }
-
-            $products = $apiData['products'];
-            
-            if (empty($products)) {
-                return [
-                    'success' => true,
-                    'message' => 'No products found in the API',
-                    'data' => [],
-                    'stats' => ['total' => 0, 'created' => 0, 'skipped' => 0, 'failed' => 0],
-                    'status' => 200
-                ];
-            }
-
-            return $this->processProducts($products);
+            return [
+                'success' => true,
+                'products' => $data['products'] ?? [],
+                'pagination' => $data['pagination'] ?? null
+            ];
 
         } catch (\Exception $e) {
-            Log::error("Mohasagor import failed: " . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'Server error during import: ' . $e->getMessage(),
-                'error' => $e->getMessage(),
-                'status' => 500
-            ];
+            return ['success' => false, 'message' => $e->getMessage()];
         }
     }
 
-    protected function processProducts(array $products)
+    protected function processBatch(array $products)
     {
-        $existingProducts = Product::whereNotNull('api_id')->pluck('api_id')->toArray();
-        $existingProductIds = array_flip($existingProducts);
+        $stats = ['created' => 0, 'updated' => 0, 'failed' => 0, 'skipped' => 0];
 
-        $stats = [
-            'total' => count($products),
-            'created' => 0,
-            'skipped' => 0,
-            'failed' => 0
-        ];
-
-        $failedProducts = [];
-        $successProducts = [];
-
-        foreach ($products as $index => $product) {
-            if (!isset($product['id'])) {
+        foreach ($products as $productData) {
+            if (!isset($productData['id'])) {
                 $stats['failed']++;
-                $failedProducts[] = [
-                    'index' => $index,
-                    'name' => isset($product['name']) ? $this->cleanText($product['name']) : 'Unknown',
-                    'reason' => 'Missing product ID'
-                ];
-                continue;
-            }
-
-            $productId = $product['id'];
-            $productName = isset($product['name']) ? $this->cleanText($product['name']) : 'Unnamed Product';
-
-            if (isset($existingProductIds[$productId])) {
-                $stats['skipped']++;
                 continue;
             }
 
             try {
-                $categoryId = $this->resolveCategory($product);
-
-                $productData = $this->prepareProductData($product, $categoryId);
-
-                if (empty($productData['name']) || empty($productData['slug'])) {
-                    throw new \Exception("Missing required fields (name or slug)");
+                $apiId = $productData['id'];
+                
+                $categoryId = $this->resolveCategory($productData);
+                $prepared = $this->prepareProductData($productData, $categoryId);
+                
+                if (empty($prepared['name']) || empty($prepared['slug'])) {
+                    $stats['failed']++;
+                    continue;
                 }
 
-                $newProduct = Product::create($productData);
+                // Check for existing product by API ID
+                $existingProduct = Product::where('api_id', $apiId)->exists();
 
-                $existingProductIds[$productId] = true;
+                if ($existingProduct) {
+                    // User Request: "duplicate product will not import"
+                    // We skip if it already exists.
+                    $stats['skipped']++;
+                    continue; 
+                }
+
+                $product = Product::create($prepared);
                 $stats['created']++;
 
-                $successProducts[] = [
-                    'id' => $newProduct->id,
-                    'name' => $productName,
-                    'api_id' => $productId
-                ];
+                // Dispatch Image Job
+                $mainImageUrl = $productData['thumbnail_img'] ?? null;
+                $galleryPayload = $productData['product_images'] ?? [];
+                
+                if ($mainImageUrl || !empty($galleryPayload)) {
+                    DownloadImportedProductImage::dispatch($product, $mainImageUrl, $galleryPayload);
+                }
 
-                usleep(50000); // 50ms delay
             } catch (\Exception $e) {
+                Log::error("Failed to process product {$productData['id']}: " . $e->getMessage());
                 $stats['failed']++;
-                $failedProducts[] = [
-                    'index' => $index,
-                    'name' => $productName,
-                    'api_id' => $productId,
-                    'reason' => $e->getMessage(),
-                    'category' => $product['category'] ?? 'No category'
-                ];
-                Log::error("Error processing product {$productName} (ID: {$productId}): " . $e->getMessage());
             }
         }
 
-        return [
-            'success' => true,
-            'message' => 'Import completed successfully',
-            'stats' => $stats,
-            'data' => [
-                'processed' => $stats['total'],
-                'success_count' => count($successProducts),
-                'failed_count' => count($failedProducts),
-                'failed_samples' => array_slice($failedProducts, 0, 10)
-            ],
-            'status' => 200
-        ];
+        return $stats;
+    }
+
+    /**
+     * Clear all products and categories to start fresh.
+     */
+    public function resetData()
+    {
+        Schema::disableForeignKeyConstraints();
+
+        Product::truncate();
+        Category::truncate();
+        
+        // Truncate other tables if exist and related
+        if (Schema::hasTable('product_variations')) {
+             \Illuminate\Support\Facades\DB::table('product_variations')->truncate(); 
+        }
+         if (Schema::hasTable('images')) {
+             // Assuming images table stores polymorphic relations
+              \Illuminate\Support\Facades\DB::table('images')->truncate(); 
+        }
+        
+        Schema::enableForeignKeyConstraints();
+        
+        // Clear usage caches
+        $this->categoryCache = [];
+        $this->existingCategories = Category::all();
+        
+        return true;
     }
 
     protected function resolveCategory($product)
@@ -184,30 +224,26 @@ class MohasagorImportService
         if (isset($this->categoryCache[$categoryKey])) {
             return $this->categoryCache[$categoryKey];
         }
-
-        $existingCategory = $this->existingCategories->first(function ($cat) use ($categoryName) {
-            return strtolower(trim($this->cleanText($cat->name))) === strtolower(trim($categoryName));
+        
+        $existing = $this->existingCategories->first(function($cat) use ($categoryKey) {
+            return strtolower(trim($this->cleanText($cat->name))) === $categoryKey;
         });
 
-        if ($existingCategory) {
-            $categoryId = $existingCategory->id;
-            $this->categoryCache[$categoryKey] = $categoryId;
-            return $categoryId;
+        if ($existing) {
+            $this->categoryCache[$categoryKey] = $existing->id;
+            return $existing->id;
         }
 
-        // Create new category
         $slug = isset($product['slug']) ? $this->cleanText($product['slug']) : Str::slug($categoryName);
-        $image = isset($product['thumbnail_img']) ? $this->cleanText($product['thumbnail_img']) : '';
-
+        
         $newCategory = Category::create([
             'name' => trim($categoryName),
             'slug' => $slug,
-            'image' => $image, // Note via original code logic, this might assume it's a URL or needs saving? In prepareProductData it saves image. Here it seems to just take string. Staying faithful to original logic but cautious.
-            // Original code: 'image' => $image (where $image came from thumbnail_img cleanText)
+            'image' => !empty($product['thumbnail_img']) ? basename($product['thumbnail_img']) : '', 
             'is_active' => true,
             'priority' => 1,
         ]);
-
+        
         $this->existingCategories->push($newCategory);
         $this->categoryCache[$categoryKey] = $newCategory->id;
         
@@ -230,39 +266,44 @@ class MohasagorImportService
         $discountAmount = floatval($product['discount_amount'] ?? 0);
         $taxAmount = floatval($product['tax_amount'] ?? 0);
         $shippingCost = floatval($product['shipping_cost'] ?? 0);
-        $thumbnailImg = $this->saveImageLocally($this->cleanText($product['thumbnail_img'] ?? ''));
         
+        // Handle Slug
         $slug = !empty($product['slug'] ?? '') ? $this->cleanText($product['slug']) : Str::slug($productName);
         $originalSlug = $slug;
         $counter = 1;
-        
-        while (Product::where('slug', $slug)->exists()) {
-            $slug = $originalSlug . '-' . $counter++;
+        // Check uniqueness if new or if slug changed significantly? 
+        while (Product::where('slug', $slug)->where('api_id', '!=', $productId)->exists()) {
+             $slug = $originalSlug . '-' . $counter++;
         }
-        
-        // Build attributes
+
+        // Attributes
         $attributes = [];
         $variants = $product['product_variants'] ?? [];
         $attributeMap = [];
-        
         foreach ($variants as $variant) {
-            if (!empty($variant['attribute'] ?? '') && !empty($variant['variant'] ?? '')) {
+            if (!empty($variant['attribute']) && !empty($variant['variant'])) {
                 $name = $this->cleanText($variant['attribute']);
                 $value = $this->cleanText($variant['variant']);
                 $attributeMap[$name][] = $value;
             }
         }
-        
         foreach ($attributeMap as $name => $values) {
             $attributes[] = ['name' => $name, 'values' => array_unique($values)];
         }
-        
-        // Get gallery images
-        $galleryImages = $this->getGalleryImages($product);
-        if (!empty($galleryImages)) {
-            $galleryImages = array_slice($galleryImages, 0, 20); // max 20 images
+
+        // Initial image data - use external URLs for immediate display
+        $mainImage = !empty($product['thumbnail_img']) ? basename($product['thumbnail_img']) : '';
+        $galleryImages = [];
+        if (isset($product['product_images']) && is_array($product['product_images'])) {
+            foreach ($product['product_images'] as $img) {
+                if (is_array($img) && isset($img['product_image'])) {
+                    $galleryImages[] = basename($img['product_image']);
+                } elseif (is_string($img)) {
+                    $galleryImages[] = basename($img);
+                }
+            }
         }
-        
+
         return [
             'name' => mb_substr($productName, 0, 255, 'UTF-8'),
             'description' => mb_substr($description, 0, 5000, 'UTF-8'),
@@ -286,79 +327,33 @@ class MohasagorImportService
             'shipping_cost' => $shippingCost,
             'shipping_multiply' => false,
             'loyalty_point' => 0,
-            'image' => mb_substr($thumbnailImg, 0, 500, 'UTF-8'),
-            'variations' => '[]', // Empty JSON array as string
+            'image' => $mainImage, 
+            'variations' => '[]',
             'attributes' => !empty($attributes) ? json_encode($attributes, JSON_UNESCAPED_SLASHES) : '[]',
-            'colors' => '[]', // Empty JSON array as string
-            'tags' => '[]', // Empty JSON array as string
+            'colors' => '[]',
+            'tags' => '[]',
             'is_featured' => false,
             'is_trending' => false,
             'is_discounted' => false,
             'status' => 'active',
             'slug' => mb_substr($slug, 0, 255, 'UTF-8'),
-            'gallery_images' => !empty($galleryImages) ? json_encode($galleryImages, JSON_UNESCAPED_SLASHES) : '[]'
+            'gallery_images' => json_encode($galleryImages),
         ];
     }
 
-    protected function getGalleryImages($product)
-    {
-        $images = [];
-        $productImages = $product['product_images'] ?? [];
-        
-        foreach ($productImages as $img) {
-            $url = '';
-            
-            if (is_array($img) && isset($img['product_image'])) {
-                $url = $img['product_image'];
-            } elseif (is_string($img)) {
-                $url = $img;
-            }
-            
-            if (!empty($url) && $localPath = $this->saveImageLocally($url)) {
-                $images[] = $localPath; // Save only the image name
-            }
-        }
-        
-        return $images;
-    }
-    
     protected function cleanText($text)
     {
         if (!is_string($text)) return $text;
-        
         $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
         $text = preg_replace('/[^\x{0009}\x{000a}\x{000d}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}]+/u', '', $text);
-        $text = str_replace(["\xEF\xBB\xBF", "\xEF\xBF\xBD"], '', $text);
-        
-        return trim($text);
+        return trim(str_replace(["\xEF\xBB\xBF", "\xEF\xBF\xBD"], '', $text));
     }
-    
+
     protected function cleanResponse($response)
     {
         $response = str_replace("\xEF\xBB\xBF", '', $response);
         $response = mb_convert_encoding($response, 'UTF-8', 'UTF-8');
         $response = preg_replace('/[^\x{0009}\x{000a}\x{000d}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}]+/u', '', $response);
-        $response = str_replace("\xEF\xBF\xBD", '', $response);
-        
-        return $response;
-    }
-    
-    protected function saveImageLocally($url)
-    {
-        try {
-            if (empty($url)) {
-                return null;
-            }
-            
-            $contents = file_get_contents($url);
-            $name = basename($url); // Extract only the image name
-            $path = 'products/' . $name;
-            Storage::put($path, $contents);
-            
-            return $name; // Return only the image name
-        } catch (\Exception $e) {
-            Log::error("Failed to save image from URL {$url}: " . $e->getMessage());
-            return null;
-        }
+        return str_replace("\xEF\xBF\xBD", '', $response);
     }
 }
