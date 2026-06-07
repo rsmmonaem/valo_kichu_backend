@@ -33,7 +33,7 @@ class DashboardController extends Controller
                 $product = Product::find($item->product_id);
                 if ($product) {
                     $item->name = $product->name;
-                    $item->image = $product->images[0] ?? null;
+                    $item->image = $product->image ?? null;
                 }
                 return $item;
             });
