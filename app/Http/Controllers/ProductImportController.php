@@ -3,10 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\MohasagorImportService;
-<<<<<<< HEAD
-=======
 use Illuminate\Support\Facades\Log;
->>>>>>> rakibul
 use Illuminate\Http\Request;
 
 class ProductImportController extends Controller
@@ -20,14 +17,6 @@ class ProductImportController extends Controller
 
     public function importProducts(Request $request)
     {
-<<<<<<< HEAD
-        $result = $this->importService->fetchAndProcessProducts();
-        
-        $status = $result['status'] ?? 200;
-        unset($result['status']); // Remove internal status code from response body
-        
-        return response()->json($result, $status);
-=======
         $user = $request->user();
         $userId = $user ? $user->id : 'unknown';
         Log::info('Product import initiated by user: ' . $userId);
@@ -84,6 +73,5 @@ class ProductImportController extends Controller
                 'message' => 'Debug check failed: ' . $e->getMessage()
             ], 500);
         }
->>>>>>> rakibul
     }
 }

@@ -20,11 +20,6 @@ class ProductController extends Controller
 
         // Filter by Category
         if ($request->has('category_slug')) {
-<<<<<<< HEAD
-            $query->whereHas('category', function ($q) use ($request) {
-                $q->where('slug', $request->category_slug);
-            });
-=======
             $category = \App\Models\Category::where('slug', $request->category_slug)->first();
             if ($category) {
                 $categoryIds = \App\Models\Category::getAllChildCategoryIds($category->id);
@@ -33,7 +28,6 @@ class ProductController extends Controller
                 // If category not found, return empty results
                 $query->where('category_id', 0);
             }
->>>>>>> rakibul
         }
 
         // Filter by Brand
@@ -53,13 +47,6 @@ class ProductController extends Controller
         // Sorting
         if ($request->has('sort_by')) {
             switch ($request->sort_by) {
-<<<<<<< HEAD
-                case 'price_low_high':
-                    $query->orderBy('sale_price', 'asc');
-                    break;
-                case 'price_high_low':
-                    $query->orderBy('sale_price', 'desc');
-=======
                 case 'low_to_high':
                 case 'price_low_high':
                     $query->orderByRaw('COALESCE(sale_price, base_price) ASC');
@@ -67,17 +54,13 @@ class ProductController extends Controller
                 case 'high_to_low':
                 case 'price_high_low':
                     $query->orderByRaw('COALESCE(sale_price, base_price) DESC');
->>>>>>> rakibul
                     break;
                 case 'newest':
                     $query->orderBy('created_at', 'desc');
                     break;
-<<<<<<< HEAD
-=======
                 case 'oldest':
                     $query->orderBy('created_at', 'asc');
                     break;
->>>>>>> rakibul
                 default:
                     $query->orderBy('created_at', 'desc');
             }
@@ -85,11 +68,7 @@ class ProductController extends Controller
             $query->orderBy('created_at', 'desc');
         }
 
-<<<<<<< HEAD
-        $products = $query->paginate(20);
-=======
         $products = $query->paginate(40);
->>>>>>> rakibul
 
         return response()->json([
             'status' => true,
