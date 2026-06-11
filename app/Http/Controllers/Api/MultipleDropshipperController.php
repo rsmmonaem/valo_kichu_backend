@@ -31,16 +31,14 @@ class MultipleDropshipperController extends Controller
         }
         $user_first_name = $dropshipper->user->first_name ?? null;
         $user_last_name = $dropshipper->user->last_name ?? null;
-        // dd($dropshipper);
-        $payload = [
-            //customer details
+        $customer_data = [
             'customer_name' => $user_first_name . ' ' . $user_last_name ?? null,
             'customer_phone' => $dropshipper->contact_number ?? null,
             'customer_address' => $dropshipper->shipping_address ?? null,
             'status' => $dropshipper->status ?? null,
             'payment_status' => $dropshipper->payment_status ?? null,
-
-            //order details
+        ];
+        $order_data = [
             'invoice_no' => $dropshipper->order_number,
             'city_id' => $dropshipper['city'] ?? null,
             'sub_city_id' => $dropshipper['city'] ?? null,
@@ -49,15 +47,23 @@ class MultipleDropshipperController extends Controller
             'discount' => $dropshipper->discount,
             'total_price' => $dropshipper->total_price + $dropshipper->shipping_cost - $dropshipper->discount,
             'order_note' => $request->input('order_note'),
-
-            //product details
-            'products' => $products,
-
-            //Reseller Name
+        ];
+        $reseller_data = [
             'reseller_name' => "N.I.Biz software",
-            'reseller_phone' => "01700000000" ,
+            'reseller_phone' => "01700000000",
             'reseller_email' => "reseller@nibiz.com",
             'reseller_address' => "123 Reseller St, City, Country",
+        ];
+        $payload = [
+            //customer details
+            'customer_details' => $customer_data,
+            //order details
+            'order_details' => $order_data,
+            //product details
+            'products' => $products,
+            //Reseller Name
+            'reseller_details' => $reseller_data,
+
         ];
         $headers = [
             'api_key' => "your_api_key_here",
@@ -66,7 +72,8 @@ class MultipleDropshipperController extends Controller
 
         $result = DropshipperOrderHelper::post(
             $poat_url,
-            $payload
+            $payload,
+            $headers
         );
 
         return response()->json($result);
