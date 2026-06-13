@@ -466,7 +466,7 @@ class OrderController extends Controller
             'notes' => $request->notes ?? null,
             'referred_by_id' => $referrer?->id,
             'referral_source' => $request->referral_source ?? ($referrer ? 'store_link' : null),
-            'order_type' => $referrer ? 'referral' : 'direct',
+            'order_type' => ($user && $user->isAnyDropshipper()) ? 'dropshipping' : ($referrer ? 'referral' : 'direct'),
         ]);
 
         // Note: I added shipping_cost and notes map because they were missing in original checkout logic 
