@@ -10,11 +10,19 @@ use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with(['category', 'creator'])
-            ->latest()
-            ->paginate(40);
+        $query = Product::with(['category', 'creator'])->latest();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('product_sku', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $products = $query->paginate(40);
 
         return response()->json($products);
     }
