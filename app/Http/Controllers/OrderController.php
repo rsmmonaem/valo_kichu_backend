@@ -449,6 +449,7 @@ class OrderController extends Controller
         $order = Order::create([
             'user_id' => $user ? $user->id : null,
             'name' => $request->name ?? ($user ? ($user->first_name . ' ' . $user->last_name) : 'Guest'),
+            'email' => $request->email ?? ($user ? $user->email : null),
             'subtotal' => $totalPrice + $discountAmount, // Before coupon
             'discount' => $discountAmount,
             'total_price' => $totalPrice + ($request->shipping_cost ?? 0), // You might want to add shipping cost here if passed from frontend
