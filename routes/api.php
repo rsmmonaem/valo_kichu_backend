@@ -213,8 +213,10 @@ Route::group(['prefix' => 'dropshipping', 'middleware' => ['ip.security', 'hmac.
     Route::get('/', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getProducts']);
     Route::get('/products', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getProducts']);
     Route::get('/products/{id}', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'show']);
+    Route::get('/categories', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getCategories']);
     Route::get('/balance', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getBalance']);
     Route::post('/orders', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'placeOrder']);
+    Route::get('/orders', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getOrders']);
     Route::get('/tracking', [DropshipperApiController::class, 'getTrackingInfo']);
     Route::post('/cancel-order', [DropshipperApiController::class, 'cancelOrder']);
     Route::get('/shipping-methods', [ShippingMethodController::class, 'index']);
@@ -231,6 +233,7 @@ Route::group(['prefix' => 'dropshipper', 'middleware' => ['auth:sanctum', 'drops
     Route::get('/withdrawals-history', [DropshipperApiController::class, 'getWithdrawalHistory']);
     Route::post('/withdrawal-requests', [DropshipperApiController::class, 'getWithdrawalRequests']);
     Route::get('/products', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getProducts']);
+    Route::get('/categories', [\App\Http\Controllers\Api\DropshippingFeedController::class, 'getCategories']);
     Route::get('/api-keys', [\App\Http\Controllers\Api\DropshipperApiController::class, 'index']);
     Route::post('/api-keys', [\App\Http\Controllers\Api\DropshipperApiController::class, 'generateKey']);
     Route::put('/api-keys/{id}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'update']);

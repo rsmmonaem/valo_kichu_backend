@@ -33,6 +33,7 @@ class DropshippingFeedController extends Controller
         $products->getCollection()->transform(function ($product) use ($user) {
             return [
                 'id' => $product->id,
+                'category_id' => $product->category_id,
                 'name' => $product->name,
                 'slug' => $product->slug,
                 'description' => $product->description,
@@ -66,6 +67,7 @@ class DropshippingFeedController extends Controller
             'status' => 'success',
             'data' => [
                 'id' => $product->id,
+                'category_id' => $product->category_id,
                 'name' => $product->name,
                 'slug' => $product->slug,
                 'description' => $product->description,
@@ -113,6 +115,9 @@ class DropshippingFeedController extends Controller
             'shipping_address.phone' => 'required|string',
             'shipping_address.address' => 'required|string',
             'shipping_address.city' => 'required|string',
+            'shipping_method_id' => 'nullable|exists:shipping_methods,id',
+            'shipping_method' => 'nullable|string',
+            'shipping_cost' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -159,12 +164,30 @@ class DropshippingFeedController extends Controller
                 ];
             }
 
+            $shippingCost = 0;
+            if (!empty($input['shipping_method_id'])) {
+                $shippingMethod = \App\Models\ShippingMethod::find($input['shipping_method_id']);
+                if ($shippingMethod && $shippingMethod->is_active) {
+                    $shippingCost = (float) $shippingMethod->cost;
+                }
+            } elseif (!empty($input['shipping_method'])) {
+                $shippingMethod = \App\Models\ShippingMethod::where('is_active', true)
+                    ->where('name', 'like', '%' . $input['shipping_method'] . '%')
+                    ->first();
+                if ($shippingMethod) {
+                    $shippingCost = (float) $shippingMethod->cost;
+                }
+            } elseif (isset($input['shipping_cost'])) {
+                $shippingCost = (float) $input['shipping_cost'];
+            }
+
             $order = Order::create([
                 'user_id' => $user->id,
                 'name' => $input['shipping_address']['name'] ?? null,
-                'total_price' => $totalPrice, // Fixed from total_amount to total_price
-                'order_price' => $totalPrice, // Added order_price for clarity
+                'total_price' => $totalPrice + $shippingCost,
+                'order_price' => $totalPrice + $shippingCost,
                 'subtotal' => $totalPrice,
+                'shipping_cost' => $shippingCost,
                 'status' => 'pending',
                 'shipping_address' => json_encode($input['shipping_address']),
                 'order_type' => 'dropshipping',
@@ -183,7 +206,7 @@ class DropshippingFeedController extends Controller
                 'status' => 'success',
                 'message' => 'Order placed successfully.',
                 'order_id' => $order->id,
-                'total_amount' => $totalPrice // Maintaining total_amount in response for potential client compatibility
+                'total_amount' => $totalPrice + $shippingCost
             ], 201);
 
         } catch (\Exception $e) {
@@ -211,6 +234,49 @@ class DropshippingFeedController extends Controller
                 'balance' => $balance,
                 'currency' => 'BDT'
             ]
+        ]);
+    }
+
+    /**
+     * Get active categories with optional parent filter and subcategories
+     */
+    public function getCategories(Request $request)
+    {
+        $parentOnly = $request->boolean('parent_only', false);
+
+        $query = \App\Models\Category::where('is_active', true);
+
+        if ($parentOnly) {
+            $query->whereNull('parent_id');
+        }
+
+        $categories = $query->with(['children' => function ($q) {
+                $q->where('is_active', true);
+            }])
+            ->orderBy('priority', 'asc')
+            ->orderBy('name', 'asc')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $categories
+        ]);
+    }
+
+    /**
+     * Get order history for the authenticated dropshipper
+     */
+    public function getOrders(Request $request)
+    {
+        $user = auth()->user();
+        $orders = Order::where('user_id', $user->id)
+            ->with(['items', 'items.product'])
+            ->latest()
+            ->paginate(15);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $orders
         ]);
     }
 }
