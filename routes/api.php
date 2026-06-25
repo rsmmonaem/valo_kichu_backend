@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\MultipleDropshipperController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
@@ -43,9 +44,9 @@ Route::get('/admin/seed-categories', function () {
 });
 
 // Delete all categories - Admin only
-Route::delete('/admin/categories/delete-all', function() {
+Route::delete('/admin/categories/delete-all', function () {
     \DB::table('categories')->truncate();
-    return response()->json(['status'=>true,'message'=>'Deleted']);
+    return response()->json(['status' => true, 'message' => 'Deleted']);
 });
 
 
@@ -160,7 +161,7 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('/orders/{orderId}/send-invoice', [OrderInvoiceController::class, 'sendInvoice']);
 
 
-Route::post('/order/checkout', [OrderController::class, 'checkout'])->middleware('optional.auth');
+    Route::post('/order/checkout', [OrderController::class, 'checkout'])->middleware('optional.auth');
     Route::middleware('auth:sanctum', 'dropshipper.approved')->group(function () {
         // Auth routes
         Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -236,8 +237,8 @@ Route::group(['prefix' => 'dropshipper', 'middleware' => ['auth:sanctum', 'drops
     Route::delete('/api-keys/{id}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'destroy']);
     Route::get('/profile', [DropshipperApiController::class, 'getProfile']);
     // Route::post('/profile', [\App\Http\Controllers\Api\DropshipperApiController::class, 'updateProfile']); // Use POST to support image upload via form-data
-    Route::match(['post','put'], '/profile', [DropshipperApiController::class, 'updateProfile'])
-    ->middleware('parse.multipart.put');
+    Route::match(['post', 'put'], '/profile', [DropshipperApiController::class, 'updateProfile'])
+        ->middleware('parse.multipart.put');
 });
 // Route::get('/dropshipper/tracking', 
 //     [DropshipperApiController::class, 'getTrackingInfo']
@@ -255,3 +256,5 @@ Route::prefix('v2')->group(function () {
 Route::group(['prefix' => 'admin', 'middleware' => 'auth:sanctum'], function () {
     require base_path('routes/admin.php');
 });
+//ORDER DROPSHIPPER API
+Route::post('/order-dropshipper', [MultipleDropshipperController::class, 'placeOrder']);

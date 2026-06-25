@@ -144,7 +144,7 @@
               @if($order->discount > 0)
               <tr>
                 <td style="padding: 5px 0;">Discount</td>
-                <td class="text-right" style="padding: 5px 0;">- &#2547;{{ number_format($order->discount, 2) }}</td>
+                <td class="text-right" style="padding: 5px 0;">- &#2547;{{ number_format($order->discount + $order->shipping_cost - $order->discount, 2) }}</td>
               </tr>
               @endif
               <tr class="bg-light bold">

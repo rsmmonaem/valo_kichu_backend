@@ -93,7 +93,7 @@ class OrderController extends Controller
                 'shipping_address' => $validated['shipping_address'],
                 'contact_number' => $validated['contact_number'],
                 'notes' => $validated['notes'] ?? null,
-                'currency' => 'BDT', 
+                'currency' => 'BDT',
             ]);
 
             foreach ($itemsData as $data) {
@@ -121,7 +121,7 @@ class OrderController extends Controller
     public function show(string $id, Request $request)
     {
         $order = Order::with(['items', 'items.product'])->findOrFail($id);
-        
+
         if ($request->user()->id !== $order->user_id) {
             abort(403);
         }
@@ -129,46 +129,46 @@ class OrderController extends Controller
         return response()->json(new OrderResource($order));
     }
 
-        private function getItemPrice($product, $variant)
+    private function getItemPrice($product, $variant)
     {
         // If variant exists, use variant price
         if ($variant) {
             $price = (float) $variant->price;
             $discount = (float) $variant->discount;
             $discountType = $variant->discount_type;
-            
+
             // If discount_price is already calculated, use it
             if ($variant->discount_price && $variant->discount_price > 0) {
                 return (float) $variant->discount_price;
             }
-            
+
             // Otherwise calculate based on discount_type
             if (in_array($discountType, ['percent', 'percentage']) && $discount > 0) {
                 return $price * (100 - $discount) / 100;
             } elseif (in_array($discountType, ['amount', 'flat']) && $discount > 0) {
                 return max(0, $price - $discount);
             }
-            
+
             return $price;
         }
-        
+
         // Use product price
         $price = (float) $product->price;
         $discount = (float) $product->discount;
         $discountType = $product->discount_type;
-        
+
         // If discount_price is already calculated, use it
         if ($product->discount_price && $product->discount_price > 0) {
             return (float) $product->discount_price;
         }
-        
+
         // Otherwise calculate based on discount_type
         if (in_array($discountType, ['percent', 'percentage']) && $discount > 0) {
             return $price * (100 - $discount) / 100;
         } elseif (in_array($discountType, ['amount', 'flat']) && $discount > 0) {
             return max(0, $price - $discount);
         }
-        
+
         return $price;
     }
 
@@ -187,7 +187,7 @@ class OrderController extends Controller
         $user = $request->user();
         $product = Product::findOrFail($request->item_id);
         $variant = $request->variant_id ? ProductVariation::find($request->variant_id) : null;
-        
+
         $unitPrice = $this->getItemPrice($product, $variant);
 
         $cartItem = CartItem::firstOrNew(
@@ -237,13 +237,13 @@ class OrderController extends Controller
             ->firstOrFail();
 
         $cartItem->quantity += $request->quantity;
-        
+
         if ($cartItem->quantity < 1) {
             $cartItem->quantity = 1;
         }
-        
+
         $cartItem->save();
-        
+
         return response()->json([
             'message' => 'Cart updated successfully.',
             'cart_item' => $cartItem
@@ -282,13 +282,15 @@ class OrderController extends Controller
 
         if (CouponUsage::where('coupon_id', $coupon->id)
             ->where('user_id', $user->id)
-            ->exists()) {
+            ->exists()
+        ) {
             return response()->json(['detail' => 'You have already used this coupon.'], 400);
         }
 
         if (AppliedCoupon::where('coupon_id', $coupon->id)
             ->where('user_id', $user->id)
-            ->exists()) {
+            ->exists()
+        ) {
             return response()->json(['detail' => 'You already applied this coupon.'], 400);
         }
 
@@ -319,6 +321,8 @@ class OrderController extends Controller
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|integer|min:1',
             'products.*.variant_id' => 'nullable|exists:product_variations,id',
+            'products.*.product_variation_id' => 'nullable|exists:product_variations,id', // also accept this key
+            'products.*.price' => 'nullable|numeric|min:0', // frontend-sent price
             'payment_method' => 'required|string',
             // 'address_id' => 'required|exists:address,id',
             'tran_id' => 'nullable|string',
@@ -343,12 +347,12 @@ class OrderController extends Controller
 
         // Align with Checkout.jsx keys: shipping_address, contact_number
         // Also fallback to address/phone_number if sent by others
-        $shippingAddress = $address 
-            ? "$address->address_line1, $address->city, $address->country" 
+        $shippingAddress = $address
+            ? "$address->address_line1, $address->city, $address->country"
             : ($request->shipping_address ?? $request->address ?? 'N/A');
-            
-        $contactNumber = $address 
-            ? $address->phone 
+
+        $contactNumber = $address
+            ? $address->phone
             : ($request->contact_number ?? $request->phone_number ?? ($user?->phone_number) ?? 'N/A');
 
         $tranId = $request->tran_id ?? $request->transaction_id;
@@ -374,11 +378,24 @@ class OrderController extends Controller
 
         foreach ($request->products as $item) {
             $product = Product::findOrFail($item['product_id']);
-            $variant = !empty($item['variant_id']) ? ProductVariation::find($item['variant_id']) : null;
+
+            // Accept both 'variant_id' and 'product_variation_id' keys from frontend
+            $variantId = $item['variant_id'] ?? $item['product_variation_id'] ?? null;
+            $variant = !empty($variantId) ? ProductVariation::find($variantId) : null;
             $quantity = (int) $item['quantity'];
 
-            // Use standard price logic
-            $itemPrice = $variant ? (float)$variant->price : (float)$product->price;
+            // Frontend sends the actual displayed price (sale_price / variation price).
+            // Since variant IDs are not passed (matching is name-based on frontend),
+            // server-side variation lookup always returns null — so frontend price
+            // is the only reliable source for variation-based pricing.
+            // Use server-calculated price only as fallback when frontend sends nothing.
+            $frontendPrice = isset($item['price']) && (float)$item['price'] > 0
+                ? (float)$item['price']
+                : null;
+
+            $itemPrice = $frontendPrice !== null
+                ? $frontendPrice
+                : $this->getItemPrice($product, $variant);
 
             $totalPrice += $itemPrice * $quantity;
 
@@ -394,7 +411,7 @@ class OrderController extends Controller
         // Handle coupon (Only for logged-in users for now)
         $discountAmount = 0;
         $appliedCoupon = null;
-        
+
         if ($user) {
             $appliedCoupon = AppliedCoupon::where('user_id', $user->id)
                 ->where('is_used', false)
@@ -406,7 +423,8 @@ class OrderController extends Controller
 
                 if (CouponUsage::where('coupon_id', $coupon->id)
                     ->where('user_id', $user->id)
-                    ->exists()) {
+                    ->exists()
+                ) {
                     return response()->json(['detail' => 'You have already used this coupon.'], 400);
                 }
 
@@ -431,9 +449,10 @@ class OrderController extends Controller
         $order = Order::create([
             'user_id' => $user ? $user->id : null,
             'name' => $request->name ?? ($user ? ($user->first_name . ' ' . $user->last_name) : 'Guest'),
+            'email' => $request->email ?? ($user ? $user->email : null),
             'subtotal' => $totalPrice + $discountAmount, // Before coupon
             'discount' => $discountAmount,
-            'total_price' => $totalPrice, // You might want to add shipping cost here if passed from frontend
+            'total_price' => $totalPrice + ($request->shipping_cost ?? 0), // You might want to add shipping cost here if passed from frontend
             'status' => 'pending',
             'payment_method' => $request->payment_method,
             'payment_status' => $paymentStatus,
@@ -448,9 +467,9 @@ class OrderController extends Controller
             'notes' => $request->notes ?? null,
             'referred_by_id' => $referrer?->id,
             'referral_source' => $request->referral_source ?? ($referrer ? 'store_link' : null),
-            'order_type' => $referrer ? 'referral' : 'direct',
+            'order_type' => ($user && $user->isAnyDropshipper()) ? 'dropshipping' : ($referrer ? 'referral' : 'direct'),
         ]);
-        
+
         // Note: I added shipping_cost and notes map because they were missing in original checkout logic 
         // but present in Checkout.jsx payload. Original used lines 87/94 in `store` but `checkout` missed them.
         // Wait, original `checkout` did NOT save shipping_cost or notes?
@@ -463,7 +482,7 @@ class OrderController extends Controller
         // Create OrderItems
         foreach ($orderItems as $item) {
             $variationSnapshot = $item['variation_snapshot'];
-            
+
             if (!$variationSnapshot && $item['variant']) {
                 $variationSnapshot = trim(($item['variant']->size ? "Size: {$item['variant']->size}, " : "") . ($item['variant']->color ? "Color: {$item['variant']->color}" : ""), ", ");
             }
@@ -583,7 +602,8 @@ class OrderController extends Controller
         // Prevent duplicate reviews
         if (Review::where('user_id', $user->id)
             ->where('product_id', $product->id)
-            ->exists()) {
+            ->exists()
+        ) {
             return response()->json([
                 'error' => 'You have already reviewed this product.'
             ], 400);
@@ -594,8 +614,8 @@ class OrderController extends Controller
             'product_id' => $product->id,
             'comment' => $request->comment,
             'rating' => $request->rating,
-            'image' => $request->hasFile('image') 
-                ? $request->file('image')->store('reviews', 'public') 
+            'image' => $request->hasFile('image')
+                ? $request->file('image')->store('reviews', 'public')
                 : null,
         ]);
 

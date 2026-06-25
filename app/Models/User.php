@@ -135,6 +135,11 @@ class User extends Authenticatable
         return $this->hasMany(User::class, 'refer_by');
     }
 
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function apiKeys()
     {
         return $this->hasMany(ApiKey::class);
