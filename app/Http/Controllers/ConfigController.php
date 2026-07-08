@@ -20,7 +20,7 @@ class ConfigController extends Controller
     public function appConfig(Request $request)
     {
         // Get business_setting_id from a setting or create default
-        $businessSettingId = BusinessSetting::getValue('business_setting_id', 1);
+        $businessSettingId = (int) BusinessSetting::getValue('business_setting_id', 1);
         
         // If no business_setting_id exists, create a default BusinessSetting record
         if (!BusinessSetting::where('key', 'business_setting_id')->exists()) {
@@ -171,7 +171,7 @@ class ConfigController extends Controller
             'id' => $businessSettingId,
             'shipping_fee' => BusinessSetting::getValue('shipping_fee', 0),
             'tax' => BusinessSetting::getValue('tax', 0),
-            'currency_decimal_point_setting' => BusinessSetting::getValue('currency_decimal_point_setting', 2),
+            'currency_decimal_point_setting' => (int) BusinessSetting::getValue('currency_decimal_point_setting', 2),
             'currency_symbol_position' => BusinessSetting::getValue('currency_symbol_position', 'left'),
             'business_name' => BusinessSetting::getValue('business_name', 'Tradlink'),
             'software_type' => 'single_vendor',

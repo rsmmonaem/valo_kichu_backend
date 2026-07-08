@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class BrandController extends Controller
 {
@@ -17,12 +18,34 @@ class BrandController extends Controller
         return response()->json($query->orderBy('name')->get());
     }
 
+    private function generateSlug(string $name, ?int $excludeId = null): string
+    {
+        $base  = Str::slug($name);
+        $slug  = $base;
+        $count = 1;
+
+        while (true) {
+            $query = Brand::where('slug', $slug);
+            if ($excludeId) {
+                $query->where('id', '!=', $excludeId);
+            }
+            if (!$query->exists()) {
+                break;
+            }
+            $slug = $base . '-' . $count++;
+        }
+
+        return $slug;
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'logo' => 'nullable|string',
+            'name'  => 'required|string|max:255',
+            'image' => 'nullable|string',
         ]);
+
+        $validated['slug'] = $this->generateSlug($validated['name']);
 
         $brand = Brand::create($validated);
         return response()->json($brand, 201);
@@ -36,9 +59,11 @@ class BrandController extends Controller
     public function update(Request $request, Brand $brand)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'logo' => 'nullable|string',
+            'name'  => 'required|string|max:255',
+            'image' => 'nullable|string',
         ]);
+
+        $validated['slug'] = $this->generateSlug($validated['name'], $brand->id);
 
         $brand->update($validated);
         return response()->json($brand);

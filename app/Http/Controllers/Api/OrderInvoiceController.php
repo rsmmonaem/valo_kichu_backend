@@ -36,6 +36,32 @@ class OrderInvoiceController extends Controller
     }
 
     /**
+     * Get basic order details for success page.
+     */
+    public function getOrderDetails($orderId)
+    {
+        $order = Order::where('id', $orderId)->orWhere('order_number', $orderId)->first();
+        if (!$order) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Order not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => true,
+            'data' => [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'contact_number' => $order->contact_number,
+                'name' => $order->name,
+                'total_price' => $order->total_price,
+            ]
+        ]);
+    }
+
+
+    /**
      * Send the invoice PDF via email.
      */
     public function sendInvoice($orderId, Request $request)

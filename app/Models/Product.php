@@ -11,6 +11,17 @@ use App\Models\BusinessSetting;
 
 class Product extends Model
 {
+    protected static function booted()
+    {
+        static::addGlobalScope('in_stock', function ($builder) {
+            $isAdmin = request()->is('api/admin/*') || request()->is('admin/*') || request()->is('*/admin/*');
+            $isOrderOrCart = request()->is('*/order/*') || request()->is('*/cart/*') || request()->is('*/checkout*') || request()->is('*/invoice/*') || request()->is('*/payment/*');
+            if (!$isAdmin && !$isOrderOrCart) {
+                $builder->where('current_stock', '>', 0);
+            }
+        });
+    }
+
     protected $fillable = [
         'name', 'slug', 'description','short_description', 'category_id', 'brand','category',
         'api_id',

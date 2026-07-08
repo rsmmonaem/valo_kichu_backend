@@ -16,12 +16,18 @@ use App\Http\Controllers\Admin\DropshippingAdminController;
 use App\Http\Controllers\Admin\ShippingMethodController;
 use App\Http\Controllers\Admin\WithdrawalController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\CheckoutLeadAdminController;
 
 // Admin Routes
 Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('/customers', [CustomerController::class, 'index']);
     Route::put('/customers/{id}/status', [CustomerController::class, 'toggleStatus']);
+    
+    // Checkout Leads routes
+    Route::get('/checkout-leads', [CheckoutLeadAdminController::class, 'index']);
+    Route::get('/checkout-leads/stats', [CheckoutLeadAdminController::class, 'stats']);
+    Route::delete('/checkout-leads/{id}', [CheckoutLeadAdminController::class, 'destroy']);
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('brands', BrandController::class);
     Route::apiResource('products', ProductController::class);

@@ -13,7 +13,7 @@ class OrderController extends Controller
     {
         $query = Order::with('user')->latest();
 
-        if ($request->has('status')) {
+        if ($request->has('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
@@ -27,8 +27,54 @@ class OrderController extends Controller
             }
         }
 
+        if ($request->has('start_date') && !empty($request->start_date)) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && !empty($request->end_date)) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        if ($request->has('category_id') && !empty($request->category_id)) {
+            $query->whereHas('items.product', function($q) use ($request) {
+                $q->where('category_id', $request->category_id);
+            });
+        }
+
+        // Calculate summary stats based on the unpaginated filtered query
+        $orderIds = $query->pluck('id');
+        $totalOrdersCount = $orderIds->count();
+        $totalSalesAmount = $query->sum('total_price');
+        
+        $totalItemsQty = \App\Models\OrderItem::whereIn('order_id', $orderIds)->sum('quantity');
+
+        $categorySalesAmount = 0;
+        $categoryItemsQty = 0;
+        if ($request->has('category_id') && !empty($request->category_id)) {
+            $catId = $request->category_id;
+            $categorySalesAmount = \App\Models\OrderItem::whereIn('order_id', $orderIds)
+                ->whereHas('product', function($q) use ($catId) {
+                    $q->where('category_id', $catId);
+                })->sum('total_price');
+
+            $categoryItemsQty = \App\Models\OrderItem::whereIn('order_id', $orderIds)
+                ->whereHas('product', function($q) use ($catId) {
+                    $q->where('category_id', $catId);
+                })->sum('quantity');
+        }
+
         $perPage = $request->get('per_page', 20);
-        return response()->json($query->paginate($perPage));
+        $paginated = $query->paginate($perPage);
+        $paginatedArray = $paginated->toArray();
+        $paginatedArray['summary'] = [
+            'total_orders' => $totalOrdersCount,
+            'total_sales' => $totalSalesAmount,
+            'total_items_qty' => $totalItemsQty,
+            'category_sales' => $categorySalesAmount,
+            'category_items_qty' => $categoryItemsQty,
+        ];
+
+        return response()->json($paginatedArray);
     }
 
     public function show(string $id)
@@ -41,16 +87,79 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
 
         $validated = $request->validate([
-            'status' => 'required|in:pending,confirmed,purchased_by_admin,ready_to_ship_bd,shipping,delivered,cancelled,refunded',
+            'status' => 'sometimes|in:pending,confirmed,purchased_by_admin,ready_to_ship_bd,shipping,delivered,cancelled,refunded',
+            'payment_status' => 'sometimes|in:unpaid,paid,partial',
             'tracking_id' => 'nullable|string',
+            'shipping_cost' => 'sometimes|numeric|min:0',
+            'discount' => 'sometimes|numeric|min:0',
+            'name' => 'sometimes|string',
+            'email' => 'sometimes|nullable|email',
+            'shipping_address' => 'sometimes|string',
+            'contact_number' => 'sometimes|string',
+            'notes' => 'sometimes|nullable|string',
+            'items' => 'sometimes|array',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_variation_id' => 'nullable|integer',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.order_price' => 'nullable|numeric|min:0',
+            'items.*.product_name' => 'nullable|string',
+            'items.*.variation_snapshot' => 'nullable|string',
         ]);
 
-        $order->update($validated);
-        if ($validated['status'] === 'delivered') {
-            \App\Services\WalletService::distributeCommissions($order);
-        }
-        // TODO: Trigger Notification based on status change
+        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $validated) {
+            $items = $validated['items'] ?? null;
+            unset($validated['items']);
 
-        return response()->json($order);
+            // Update main order fields
+            $order->update($validated);
+
+            if ($items !== null) {
+                // Delete existing items
+                $order->items()->delete();
+
+                // Re-create items and calculate subtotal
+                $subtotal = 0;
+                foreach ($items as $itemData) {
+                    $product = \App\Models\Product::findOrFail($itemData['product_id']);
+                    $unitPrice = $itemData['unit_price'] ?? ($product->sale_price ?? $product->base_price);
+                    $quantity = $itemData['quantity'];
+                    $totalPrice = $unitPrice * $quantity;
+                    $subtotal += $totalPrice;
+
+                    $orderPrice = $itemData['order_price'] ?? $unitPrice;
+
+                    $variationId = null;
+                    if (!empty($itemData['product_variation_id'])) {
+                        if (\App\Models\ProductVariation::where('id', $itemData['product_variation_id'])->exists()) {
+                            $variationId = $itemData['product_variation_id'];
+                        }
+                    }
+
+                    $order->items()->create([
+                        'product_id' => $itemData['product_id'],
+                        'product_variation_id' => $variationId,
+                        'quantity' => $quantity,
+                        'unit_price' => $unitPrice,
+                        'purchase_price' => $product->purchase_price ?? 0,
+                        'total_price' => $totalPrice,
+                        'order_price' => $orderPrice,
+                        'product_name' => $itemData['product_name'] ?? $product->name,
+                        'variation_snapshot' => $itemData['variation_snapshot'] ?? null,
+                    ]);
+                }
+                $order->subtotal = $subtotal;
+            }
+
+            // Recalculate total price
+            $order->total_price = max(0, $order->subtotal - $order->discount + $order->shipping_cost);
+            $order->save();
+
+            if (isset($validated['status']) && $validated['status'] === 'delivered') {
+                \App\Services\WalletService::distributeCommissions($order);
+            }
+        });
+
+        return response()->json($order->load(['items.product', 'user.dropshipperProfile', 'items.variation']));
     }
 }

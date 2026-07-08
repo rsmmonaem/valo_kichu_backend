@@ -35,6 +35,14 @@ class ProductController extends Controller
             $query->where('brand_id', $request->brand_id);
         }
 
+        // Filter by Price Range
+        if ($request->has('min_price') && $request->min_price !== null && $request->min_price !== '') {
+            $query->whereRaw('(CASE WHEN sale_price IS NOT NULL AND sale_price > 0 THEN sale_price ELSE base_price END) >= ?', [$request->min_price]);
+        }
+        if ($request->has('max_price') && $request->max_price !== null && $request->max_price !== '') {
+            $query->whereRaw('(CASE WHEN sale_price IS NOT NULL AND sale_price > 0 THEN sale_price ELSE base_price END) <= ?', [$request->max_price]);
+        }
+
         // Search
         if ($request->has('search')) {
             $search = $request->search;

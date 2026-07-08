@@ -515,6 +515,17 @@ class OrderController extends Controller
             CartItem::where('user_id', $user->id)->delete();
         }
 
+        // Mark checkout lead as converted if session_token is provided
+        $sessionToken = $request->input('session_token');
+        if ($sessionToken) {
+            \App\Models\CheckoutLead::where('session_token', $sessionToken)
+                ->where('converted', false)
+                ->update([
+                    'converted' => true,
+                    'order_id' => $order->id,
+                ]);
+        }
+
         $order->load(['items.product.images', 'items.variation.images']);
 
         return response()->json(new OrderResource($order), 201);
@@ -651,5 +662,31 @@ class OrderController extends Controller
             });
 
         return response()->json($reviews);
+    }
+
+    public function trackOrder(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'order_id' => 'required|string',
+            'phone_number' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 400);
+        }
+
+        $order = Order::where(function($query) use ($request) {
+                $query->where('order_number', $request->order_id)
+                      ->orWhere('id', $request->order_id);
+            })
+            ->where('contact_number', $request->phone_number)
+            ->with(['items.product.images', 'items.variation.images'])
+            ->first();
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found with the provided details.'], 404);
+        }
+
+        return response()->json(new OrderResource($order));
     }
 }

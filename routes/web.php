@@ -33,6 +33,14 @@ Route::get('/fixall', function () {
         'message' => 'All cleared successfully'
     ]);
 });
+Route::get('migrate-checkout-leads', function () {
+    \Artisan::call('migrate', [
+        '--path' => 'database/migrations/2026_07_05_123456_create_checkout_leads_table.php',
+        '--force' => true,
+    ]);
+
+    return 'Checkout Leads table migrated successfully';
+});
 
 Route::get('/reset-import', function () {
     $service = new \App\Services\MohasagorImportService();

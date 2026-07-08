@@ -175,6 +175,10 @@ class ProductController extends Controller
 
         $data = $request->except(['slug', 'created_by_admin_id']);
 
+        if ($request->has('price')) {
+            $data['base_price'] = $request->price;
+        }
+
         if ($request->has('name')) {
             $data['slug'] = Str::slug($request->name) . '-' . Str::random(6);
         }

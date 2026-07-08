@@ -12,8 +12,11 @@ class CategoryController extends Controller
     {
         $categories = Category::where('is_active', true)
             ->whereNull('parent_id')
+            ->orderBy('priority', 'asc')
             ->with(['children' => function ($q) {
-                $q->where('is_active', true);
+                $q->where('is_active', true)->orderBy('priority', 'asc')->with(['children' => function ($q2) {
+                    $q2->where('is_active', true)->orderBy('priority', 'asc');
+                }]);
             }])
             ->get()
             ->map(function ($category) {

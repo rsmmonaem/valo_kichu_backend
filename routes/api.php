@@ -20,6 +20,7 @@ use Database\Seeders\CategorySeeder;
 use App\Http\Controllers\ShippingMethodController;
 use App\Http\Controllers\Api\OrderInvoiceController;
 use App\Http\Controllers\Api\DropshipperApiController;
+use App\Http\Controllers\CheckoutLeadController;
 
 
 
@@ -57,12 +58,28 @@ Route::get('/nai/kono/migrations', function () {
 
 Route::get('/storage-link', function () {
     // Artisan::call('storage:link');
-    Artisan::call('migrate');
+    Artisan::call('migrate', ['--force' => true]);
 
     return response()->json([
         'status' => true,
-        'message' => 'Successfully done storage link'
+        'message' => 'Successfully done storage link and migration'
     ]);
+});
+
+Route::get('/run-migration', function () {
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        return response()->json([
+            'status' => true,
+            'message' => 'Migration ran successfully',
+            'output' => Artisan::output()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
 });
 
 Route::get('/reset-database', function () {
@@ -159,9 +176,13 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('/invoice/{orderId}', [OrderInvoiceController::class, 'download']);
     Route::get('/invoice/{orderId}/preview', [OrderInvoiceController::class, 'preview']);
     Route::post('/orders/{orderId}/send-invoice', [OrderInvoiceController::class, 'sendInvoice']);
+    Route::get('/orders/{orderId}/success-details', [OrderInvoiceController::class, 'getOrderDetails']);
+
 
 
     Route::post('/order/checkout', [OrderController::class, 'checkout'])->middleware('optional.auth');
+    Route::post('/order/checkout-lead', [CheckoutLeadController::class, 'save'])->middleware('optional.auth');
+    Route::post('/order/track', [OrderController::class, 'trackOrder']);
     Route::middleware('auth:sanctum', 'dropshipper.approved')->group(function () {
         // Auth routes
         Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -220,8 +241,6 @@ Route::group(['prefix' => 'dropshipping', 'middleware' => ['ip.security', 'hmac.
     Route::get('/tracking', [DropshipperApiController::class, 'getTrackingInfo']);
     Route::post('/cancel-order', [DropshipperApiController::class, 'cancelOrder']);
     Route::get('/shipping-methods', [ShippingMethodController::class, 'index']);
-
-
 });
 
 // Dropshipper Panel API (Dashboard)

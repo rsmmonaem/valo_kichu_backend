@@ -104,7 +104,6 @@ class CommerceController extends Controller
         
         // Apply pagination
         $products = $query->skip($skip)->take($limit)->get();
-        // dd($products);
         $totalPages = ceil($total / $limit);
 
         return response()->json([
@@ -114,7 +113,6 @@ class CommerceController extends Controller
             'current_page' => $offset,
             'total_pages' => $totalPages,
             'products' => ProductResource::collection($products)
-            // 'products'=> $products
         ]);
     }
 
@@ -176,8 +174,11 @@ class CommerceController extends Controller
         return Cache::remember('category_list', 60 * 60, function () {
             $categories = Category::where('is_active', true)
                 ->whereNull('parent_id')
+                ->orderBy('priority', 'asc')
                 ->with(['subcategories' => function ($query) {
-                    $query->where('is_active', true)->with('subcategories');
+                    $query->where('is_active', true)->orderBy('priority', 'asc')->with(['subcategories' => function ($q) {
+                        $q->where('is_active', true)->orderBy('priority', 'asc');
+                    }]);
                 }])
                 ->get()
                 ->map(function ($category) {
@@ -202,8 +203,11 @@ class CommerceController extends Controller
     {
         $subcategories = Category::where('is_active', true)
             ->where('parent_id', $id)
+            ->orderBy('priority', 'asc')
             ->with(['subcategories' => function ($query) {
-                $query->where('is_active', true)->with('subcategories');
+                $query->where('is_active', true)->orderBy('priority', 'asc')->with(['subcategories' => function ($q) {
+                    $q->where('is_active', true)->orderBy('priority', 'asc');
+                }]);
             }])
             ->get()
             ->map(function ($category) {
