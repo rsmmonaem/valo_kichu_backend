@@ -6,7 +6,7 @@
   <title>Invoice - {{ $order->order_number }}</title>
   <style>
     @page {
-      margin: 15mm;
+      margin: 12mm;
     }
 
     body {
@@ -34,7 +34,7 @@
     }
 
     .text-center {
-      text-align: center;
+      text-align: start;
     }
 
     .bold {
@@ -64,14 +64,14 @@
       <tr>
         <td style="width: 50%;">
           @php
-            $logo = App\Models\BusinessSetting::getValue('site_logo');
-            $logoPath = $logo ? storage_path('app/public/' . $logo) : null;
+          $logo = App\Models\BusinessSetting::getValue('site_logo');
+          $logoPath = $logo ? storage_path('app/public/' . $logo) : null;
           @endphp
           @if($logoPath && file_exists($logoPath))
-            <img src="data:image/png;base64,{{ base64_encode(file_get_contents($logoPath)) }}"
-              style="max-height: 80px; max-width: 250px;">
+          <img src="data:image/png;base64,{{ base64_encode(file_get_contents($logoPath)) }}"
+            style="max-height: 80px; max-width: 250px;">
           @else
-            <h2 class="brand-color" style="margin: 0;">valokichu</h2>
+          <h2 class="brand-color" style="margin: 0;">valokichu</h2>
           @endif
         </td>
         <td class="text-right" style="width: 50%;">
@@ -81,7 +81,7 @@
           <div style="margin-top: 5px;">
             <span class="brand-color bold" style="text-transform: uppercase;">{{ $order->payment_status }}</span>
             @if($order->payment_status !== 'paid')
-              <span style="color: #84c529;"> - PAY INVOICE</span>
+            <span style="color: #84c529;"> - PAY INVOICE</span>
             @endif
           </div>
         </td>
@@ -92,16 +92,16 @@
     <table style="margin-bottom: 40px;">
       <tr>
         <td style="width: 50%;">
-          <div class="bold">valokichu</div>
-          <div class="gray">House 3, Road 3A, 1st & 2nd Floor, Sector 15,</div>
-          <div class="gray">Uttara Model Town, Dhaka 1230</div>
+          <div class="bold">valokichu.com</div>
+          <div class="gray">House 3, Road 3A, 1st , 2nd & 3rd Floor, Sector 15 ,</div>
+          <div class="gray">( Near Uttara North Metro Station), Uttara, Dhaka -1230</div>
           <div class="gray">Bangladesh</div>
         </td>
         <td class="text-right" style="width: 50%;">
           <div class="bold">Bill To:</div>
           <div>{{ $order->name }}</div>
           @if($order->contact_number)
-            <div class="gray">{{ $order->contact_number }}</div>
+          <div class="gray">{{ $order->contact_number }}</div>
           @endif
           <div class="gray">Invoice Date: {{ $order->created_at->format('d-m-Y') }}</div>
         </td>
@@ -109,32 +109,31 @@
     </table>
 
     <!-- Items Table -->
+   <!-- Items Table -->
     <table style="margin-top: 20px;">
       <thead>
         <tr class="bg-light">
-          <th style="width: 40px; padding: 8px; text-align: left; border-bottom: 1px solid #000;">#</th>
-          <th style="padding: 8px; text-align: left; border-bottom: 1px solid #000;">Item Description</th>
-          <th style="width: 60px; padding: 8px; text-align: center; border-bottom: 1px solid #000;">Qty</th>
-          <th style="width: 100px; padding: 8px; text-align: center; border-bottom: 1px solid #000;">Rate</th>
-          <th style="width: 100px; padding: 8px; text-align: right; border-bottom: 1px solid #000;">Amount</th>
+          <th style="width: 5%; padding: 8px; text-align: left; border-bottom: 1px solid #000;">#</th>
+          <th style="width: 50%; padding: 8px; text-align: left; border-bottom: 1px solid #000;">Item Description</th>
+          <th style="width: 10%; padding: 8px; text-align: center; border-bottom: 1px solid #000;">Qty</th>
+          <th style="width: 15%; padding: 8px; text-align: right; border-bottom: 1px solid #000;">Rate</th>
+          <th style="width: 20%; padding: 8px; text-align: right; border-bottom: 1px solid #000;">Amount</th>
         </tr>
       </thead>
       <tbody>
         @foreach($order->items as $index => $item)
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ $index + 1 }}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">
-              <div class="bold">{{ $item->product_name }}</div>
-              @if($item->variation_snapshot)
-                <div class="gray" style="font-size: 12px;">{{ $item->variation_snapshot }}</div>
-              @endif
-            </td>
-            <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee;">{{ $item->quantity }}</td>
-            <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee;">
-              {{ number_format($item->unit_price, 2) }}</td>
-            <td class="text-right" style="padding: 8px; border-bottom: 1px solid #eee;">
-              {{ number_format($item->total_price, 2) }}</td>
-          </tr>
+        <tr>
+          <td style="vertical-align: top; padding: 8px 5px;">{{ $index + 1 }}</td>
+          <td style="vertical-align: top; padding: 8px 5px;">
+            <div class="bold" style="color: #111827; font-size: 11px; word-wrap: break-word; white-space: normal;">{{ $item->product_name }}</div>
+            @if($item->variation_snapshot)
+            <div class="gray" style="font-size: 10px; margin-top: 2px; word-wrap: break-word; white-space: normal;">{{ $item->variation_snapshot }}</div>
+            @endif
+          </td>
+          <td class="text-center" style="vertical-align: top; padding: 8px 5px;">{{ $item->quantity }}</td>
+          <td class="text-right" style="vertical-align: top; padding: 8px 5px;">TK {{ number_format($item->unit_price, 2) }}</td>
+          <td class="text-right bold" style="vertical-align: top; padding: 8px 5px; color: #111827;">TK {{ number_format($item->total_price, 2) }}</td>
+        </tr>
         @endforeach
       </tbody>
     </table>
@@ -150,17 +149,17 @@
               <td class="text-right" style="padding: 5px 0;">TK {{ number_format($order->subtotal, 2) }}</td>
             </tr>
             @if($order->shipping_cost > 0)
-              <tr>
-                <td style="padding: 5px 0;">Shipping</td>
-                <td class="text-right" style="padding: 5px 0;">TK {{ number_format($order->shipping_cost, 2) }}</td>
-              </tr>
+            <tr>
+              <td style="padding: 5px 0;">Shipping</td>
+              <td class="text-right" style="padding: 5px 0;">TK {{ number_format($order->shipping_cost, 2) }}</td>
+            </tr>
             @endif
             @if($order->discount > 0)
-              <tr>
-                <td style="padding: 5px 0;">Discount</td>
-                <td class="text-right" style="padding: 5px 0;">-
-                  TK {{ number_format($order->discount + $order->shipping_cost - $order->discount, 2) }}</td>
-              </tr>
+            <tr>
+              <td style="padding: 5px 0;">Discount</td>
+              <td class="text-right" style="padding: 5px 0;">-
+                TK {{ number_format($order->discount + $order->shipping_cost - $order->discount, 2) }}</td>
+            </tr>
             @endif
             <tr class="bg-light bold">
               <td style="padding: 8px;">Total</td>
@@ -181,19 +180,18 @@
       <div>
         <span class="bold">With words:</span>
         @php
-          $f = new NumberFormatter("en", NumberFormatter::SPELLOUT);
+        $f = new NumberFormatter("en", NumberFormatter::SPELLOUT);
         @endphp
         {{ ucfirst($f->format($order->total_price)) }} Only
       </div>
     </div>
-     <div style="margin-top: 15px; font-size: 11px; color: #555; border-top: 1px dashed #ddd; padding-top: 10px; line-height: 1.5;">
+    <div style="margin-top: 15px; font-size: 11px; color: #555; border-top: 1px dashed #ddd; padding-top: 10px; line-height: 1.5;">
       <strong>Track Your Order:</strong> Visit <strong>valokichu.com/track-order</strong> and track using Order ID: <strong>{{ $order->id }}</strong> (or Order Number: <strong>{{ $order->order_number }}</strong>) and Phone: <strong>{{ $order->contact_number }}</strong>
-     </div>
-     <div style="margin-top: 10px;">
+    </div>
+    <div style="margin-top: 10px;">
       Thank you for your order!
-      <p style="margin: 3px 0 0 0;">Note: If any problem contact us at 0199999999999</p>
-     </div>
-
+      <p style="margin: 3px 0 0 0;">Note: If you have any complain please contact us 01410643138</p>
+    </div>
     {{-- <!-- Payment Info -->
     <div style="margin-top: 40px; font-size: 13px;">
       <div class="bold" style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">Offline Payment

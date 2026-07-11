@@ -19,6 +19,7 @@ class CheckoutLeadController extends Controller
         $data = $request->only([
             'name', 'phone', 'email', 'address',
             'area', 'payment_method', 'notes',
+            'cart_data',
         ]);
 
         // Remove null-ish empty values so we don't overwrite already saved data

@@ -21,10 +21,12 @@ class CheckoutLead extends Model
         'session_token',
         'converted',
         'order_id',
+        'cart_data',
     ];
 
     protected $casts = [
         'converted' => 'boolean',
+        'cart_data' => 'array',
     ];
 
     public function user()
