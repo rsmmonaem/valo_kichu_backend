@@ -11,11 +11,13 @@ class IpLog extends Model
         'request_count',
         'last_request_at',
         'is_banned',
-        'ban_reason'
+        'ban_reason',
+        'is_unlimited'
     ];
 
     protected $casts = [
         'last_request_at' => 'datetime',
-        'is_banned' => 'boolean'
+        'is_banned' => 'boolean',
+        'is_unlimited' => 'boolean'
     ];
 }

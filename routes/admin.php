@@ -17,13 +17,18 @@ use App\Http\Controllers\Admin\ShippingMethodController;
 use App\Http\Controllers\Admin\WithdrawalController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CheckoutLeadAdminController;
+use App\Http\Controllers\Admin\IpLogController;
 
 // Admin Routes
 Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('/customers', [CustomerController::class, 'index']);
     Route::put('/customers/{id}/status', [CustomerController::class, 'toggleStatus']);
-    
+
+    // Page Settings
+    Route::get('/pages/{type}', [\App\Http\Controllers\Admin\PageAdminController::class, 'show']);
+    Route::put('/pages/{type}', [\App\Http\Controllers\Admin\PageAdminController::class, 'update']);
+
     // Checkout Leads routes
     Route::get('/checkout-leads', [CheckoutLeadAdminController::class, 'index']);
     Route::get('/checkout-leads/stats', [CheckoutLeadAdminController::class, 'stats']);
@@ -39,12 +44,18 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::get('/settings', [SettingController::class, 'index']);
     Route::post('/settings', [SettingController::class, 'update']);
 
+    // IP Logs
+    Route::get('/ip-logs', [IpLogController::class, 'index']);
+    Route::post('/ip-logs/{id}/reset', [IpLogController::class, 'reset']);
+    Route::post('/ip-logs/{id}/toggle-unlimited', [IpLogController::class, 'toggleUnlimited']);
+    Route::delete('/ip-logs/{id}', [IpLogController::class, 'delete']);
+
     // Dropshipping Management
     Route::group(['prefix' => 'dropshipping'], function () {
-            // Withdrawal Requests (Admin)
-    Route::get('/withdrawals', [WithdrawalController::class, 'index']);
-    Route::post('/withdrawals/{id}/approve', [WithdrawalController::class, 'approve']);
-    Route::post('/withdrawals/{id}/reject', [WithdrawalController::class, 'reject']);
+        // Withdrawal Requests (Admin)
+        Route::get('/withdrawals', [WithdrawalController::class, 'index']);
+        Route::post('/withdrawals/{id}/approve', [WithdrawalController::class, 'approve']);
+        Route::post('/withdrawals/{id}/reject', [WithdrawalController::class, 'reject']);
         Route::get('/settings', [DropshippingAdminController::class, 'getSettings']);
         Route::post('/settings', [DropshippingAdminController::class, 'updateSettings']);
         Route::get('/users', [DropshippingAdminController::class, 'listDropshippers']);

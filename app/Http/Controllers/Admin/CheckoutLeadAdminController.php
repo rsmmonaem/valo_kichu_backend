@@ -29,8 +29,8 @@ class CheckoutLeadAdminController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -54,10 +54,10 @@ class CheckoutLeadAdminController extends Controller
     public function stats()
     {
         return response()->json([
-            'total'     => CheckoutLead::count(),
+            'total' => CheckoutLead::count(),
             'converted' => CheckoutLead::where('converted', true)->count(),
-            'pending'   => CheckoutLead::where('converted', false)->count(),
-            'today'     => CheckoutLead::whereDate('created_at', today())->count(),
+            'pending' => CheckoutLead::where('converted', false)->count(),
+            'today' => CheckoutLead::whereDate('created_at', today())->count(),
         ]);
     }
 
@@ -89,7 +89,7 @@ class CheckoutLeadAdminController extends Controller
         $area = $request->input('area', $lead->area);
         $paymentMethod = $request->input('payment_method', $lead->payment_method) ?: 'cod';
         $notes = $request->input('notes', $lead->notes);
-        
+
         $shippingCost = $request->input('shipping_cost');
         if ($shippingCost === null) {
             $shippingCost = 0;
@@ -113,8 +113,8 @@ class CheckoutLeadAdminController extends Controller
                     }
 
                     $quantity = (int) $item['quantity'];
-                    $price = isset($item['price']) && (float)$item['price'] > 0
-                        ? (float)$item['price']
+                    $price = isset($item['price']) && (float) $item['price'] > 0
+                        ? (float) $item['price']
                         : ($product->sale_price ?? $product->base_price ?? 0);
 
                     $lineTotal = $price * $quantity;
@@ -129,6 +129,20 @@ class CheckoutLeadAdminController extends Controller
                     $variationSnapshot = $item['variation_snapshot'] ?? null;
                     if (!$variationSnapshot && $variation) {
                         $variationSnapshot = trim(($variation->size ? "Size: {$variation->size}, " : "") . ($variation->color ? "Color: {$variation->color}" : ""), ", ");
+                    }
+
+                    // Stock Check
+                    if ($product->api_from !== 'mohasagor') {
+                        if ($variation && $variation->stock_quantity !== null) {
+                            if ($variation->stock_quantity < $quantity) {
+                                throw new \Exception("Insufficient stock for {$product->name}. Available: {$variation->stock_quantity}");
+                            }
+                        } else {
+                            $availableStock = $product->current_stock ?? $product->stock_quantity;
+                            if ($availableStock !== null && $availableStock < $quantity) {
+                                throw new \Exception("Insufficient stock for {$product->name}. Available: {$availableStock}");
+                            }
+                        }
                     }
 
                     $orderItems[] = [
@@ -179,6 +193,21 @@ class CheckoutLeadAdminController extends Controller
                         'product_name' => $item['product']->name,
                         'variation_snapshot' => $item['variation_snapshot'],
                     ]);
+
+                    if ($item['product']->api_from !== 'mohasagor') {
+                        // Deduct Product Stock
+                        if ($item['product']->current_stock !== null) {
+                            $item['product']->decrement('current_stock', $item['quantity']);
+                        }
+                        if ($item['product']->stock_quantity !== null) {
+                            $item['product']->decrement('stock_quantity', $item['quantity']);
+                        }
+
+                        // Deduct Variation Stock
+                        if ($item['variant'] && $item['variant']->stock_quantity !== null) {
+                            $item['variant']->decrement('stock_quantity', $item['quantity']);
+                        }
+                    }
                 }
 
                 $lead->update([

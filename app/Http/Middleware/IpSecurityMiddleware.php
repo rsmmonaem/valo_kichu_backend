@@ -40,7 +40,7 @@ class IpSecurityMiddleware
         
         // Threshold: 1000 requests per IP (reset manually or by cron)
         // Or if you want "Bot protection", check for rapid bursts.
-        if ($ipLog->request_count > 5000) {
+        if (!$ipLog->is_unlimited && $ipLog->request_count > 5000) {
             $ipLog->is_banned = true;
             $ipLog->ban_reason = 'Too many requests';
         }

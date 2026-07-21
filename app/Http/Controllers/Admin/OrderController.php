@@ -28,11 +28,13 @@ class OrderController extends Controller
         }
 
         if ($request->has('start_date') && !empty($request->start_date)) {
-            $query->whereDate('created_at', '>=', $request->start_date);
+            $start = \Carbon\Carbon::parse($request->start_date, 'Asia/Dhaka')->startOfDay()->setTimezone('UTC');
+            $query->where('created_at', '>=', $start);
         }
 
         if ($request->has('end_date') && !empty($request->end_date)) {
-            $query->whereDate('created_at', '<=', $request->end_date);
+            $end = \Carbon\Carbon::parse($request->end_date, 'Asia/Dhaka')->endOfDay()->setTimezone('UTC');
+            $query->where('created_at', '<=', $end);
         }
 
         if ($request->has('category_id') && !empty($request->category_id)) {
@@ -41,10 +43,32 @@ class OrderController extends Controller
             });
         }
 
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('order_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('id', 'like', "%{$searchTerm}%")
+                  ->orWhere('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('email', 'like', "%{$searchTerm}%")
+                  ->orWhere('contact_number', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('user', function($uq) use ($searchTerm) {
+                      $uq->where('name', 'like', "%{$searchTerm}%")
+                         ->orWhere('first_name', 'like', "%{$searchTerm}%")
+                         ->orWhere('last_name', 'like', "%{$searchTerm}%")
+                         ->orWhere('email', 'like', "%{$searchTerm}%")
+                         ->orWhere('phone_number', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
         // Calculate summary stats based on the unpaginated filtered query
         $orderIds = $query->pluck('id');
         $totalOrdersCount = $orderIds->count();
-        $totalSalesAmount = $query->sum('total_price');
+        
+        // Only sum total sales for valid order statuses
+        $validSalesQuery = clone $query;
+        $validSalesQuery->whereNotIn('status', ['pending', 'cancelled', 'refunded']);
+        $totalSalesAmount = $validSalesQuery->sum('total_price');
         
         $totalItemsQty = \App\Models\OrderItem::whereIn('order_id', $orderIds)->sum('quantity');
 
@@ -52,7 +76,10 @@ class OrderController extends Controller
         $categoryItemsQty = 0;
         if ($request->has('category_id') && !empty($request->category_id)) {
             $catId = $request->category_id;
-            $categorySalesAmount = \App\Models\OrderItem::whereIn('order_id', $orderIds)
+            
+            $validCategoryOrderIds = $validSalesQuery->pluck('id');
+            
+            $categorySalesAmount = \App\Models\OrderItem::whereIn('order_id', $validCategoryOrderIds)
                 ->whereHas('product', function($q) use ($catId) {
                     $q->where('category_id', $catId);
                 })->sum('total_price');
@@ -63,8 +90,8 @@ class OrderController extends Controller
                 })->sum('quantity');
         }
 
-        $perPage = $request->get('per_page', 20);
-        $paginated = $query->paginate($perPage);
+        $limit = $request->input('limit', 20);
+        $paginated = $query->paginate($limit);
         $paginatedArray = $paginated->toArray();
         $paginatedArray['summary'] = [
             'total_orders' => $totalOrdersCount,

@@ -113,6 +113,7 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{slug}', [CategoryController::class, 'show']);
 Route::get('/banners', [BannerController::class, 'index']);
 Route::get('/settings', [SettingController::class, 'index']); // Public Settings
+Route::get('/pages/{type}', [\App\Http\Controllers\Api\PageController::class, 'show']);
 
 Route::fallback(function () {
     return response()->json([

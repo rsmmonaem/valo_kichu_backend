@@ -7,6 +7,17 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/migrate', function () {
+    Artisan::call('migrate', [
+        '--force' => true,
+    ]);
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Database migrated successfully'
+    ]);
+});
+
 
 Route::fallback(function (\Illuminate\Http\Request $request) {
     if ($request->is('api/*')) {
@@ -35,7 +46,7 @@ Route::get('/fixall', function () {
 });
 Route::get('migrate-checkout-leads', function () {
     \Artisan::call('migrate', [
-        '--path' => 'database/migrations/2026_07_05_123456_create_checkout_leads_table.php',
+        '--path' => 'database/migrations/2026_07_20_113351_add_is_unlimited_to_ip_logs_table.php',
         '--force' => true,
     ]);
 

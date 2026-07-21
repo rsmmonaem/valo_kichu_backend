@@ -55,11 +55,27 @@ class OrderController extends Controller
                 $price = $product->sale_price ?? $product->base_price;
                 $variationSnapshot = null;
 
+                $variation = null;
                 if (!empty($item['product_variation_id'])) {
                     $variation = $product->variations()->find($item['product_variation_id']);
                     if ($variation) {
                         $price += $variation->price_modifier;
                         $variationSnapshot = "Size: {$variation->size}, Color: {$variation->color}";
+                    }
+                }
+
+                // Check Stock Before Proceeding
+                if ($product->api_from !== 'mohasagor') {
+                    $quantity = $item['quantity'];
+                    if ($variation && $variation->stock_quantity !== null) {
+                        if ($variation->stock_quantity < $quantity) {
+                            throw \Illuminate\Validation\ValidationException::withMessages(['stock' => "Insufficient stock for {$product->name}. Available: {$variation->stock_quantity}"]);
+                        }
+                    } else {
+                        $availableStock = $product->current_stock ?? $product->stock_quantity;
+                        if ($availableStock !== null && $availableStock < $quantity) {
+                            throw \Illuminate\Validation\ValidationException::withMessages(['stock' => "Insufficient stock for {$product->name}. Available: {$availableStock}"]);
+                        }
                     }
                 }
 
@@ -98,6 +114,25 @@ class OrderController extends Controller
 
             foreach ($itemsData as $data) {
                 $order->items()->create($data);
+
+                // Deduct Product Stock
+                $productToUpdate = Product::find($data['product_id']);
+                if ($productToUpdate && $productToUpdate->api_from !== 'mohasagor') {
+                    if ($productToUpdate->current_stock !== null) {
+                        $productToUpdate->decrement('current_stock', $data['quantity']);
+                    }
+                    if ($productToUpdate->stock_quantity !== null) {
+                        $productToUpdate->decrement('stock_quantity', $data['quantity']);
+                    }
+
+                    // Deduct Variation Stock
+                    if (!empty($data['product_variation_id'])) {
+                        $variantToUpdate = ProductVariation::find($data['product_variation_id']);
+                        if ($variantToUpdate && $variantToUpdate->stock_quantity !== null) {
+                            $variantToUpdate->decrement('stock_quantity', $data['quantity']);
+                        }
+                    }
+                }
             }
 
             // Process Payment
@@ -280,16 +315,18 @@ class OrderController extends Controller
             return response()->json(['detail' => 'Coupon is invalid or expired.'], 400);
         }
 
-        if (CouponUsage::where('coupon_id', $coupon->id)
-            ->where('user_id', $user->id)
-            ->exists()
+        if (
+            CouponUsage::where('coupon_id', $coupon->id)
+                ->where('user_id', $user->id)
+                ->exists()
         ) {
             return response()->json(['detail' => 'You have already used this coupon.'], 400);
         }
 
-        if (AppliedCoupon::where('coupon_id', $coupon->id)
-            ->where('user_id', $user->id)
-            ->exists()
+        if (
+            AppliedCoupon::where('coupon_id', $coupon->id)
+                ->where('user_id', $user->id)
+                ->exists()
         ) {
             return response()->json(['detail' => 'You already applied this coupon.'], 400);
         }
@@ -372,25 +409,44 @@ class OrderController extends Controller
             $referrer = User::where('refer_code', $request->referral_code)->first();
         }
 
-        // Calculate total
-        $totalPrice = 0;
-        $orderItems = [];
+        try {
+            DB::beginTransaction();
 
-        foreach ($request->products as $item) {
-            $product = Product::findOrFail($item['product_id']);
+            // Calculate total
+            $totalPrice = 0;
+            $orderItems = [];
 
-            // Accept both 'variant_id' and 'product_variation_id' keys from frontend
-            $variantId = $item['variant_id'] ?? $item['product_variation_id'] ?? null;
-            $variant = !empty($variantId) ? ProductVariation::find($variantId) : null;
-            $quantity = (int) $item['quantity'];
+            foreach ($request->products as $item) {
+                $product = Product::lockForUpdate()->findOrFail($item['product_id']);
+
+                // Accept both 'variant_id' and 'product_variation_id' keys from frontend
+                $variantId = $item['variant_id'] ?? $item['product_variation_id'] ?? null;
+                $variant = !empty($variantId) ? ProductVariation::find($variantId) : null;
+                $quantity = (int) $item['quantity'];
+
+                // Stock Check Before Calculating Totals
+                if ($product->api_from !== 'mohasagor') {
+                    if ($variant && $variant->stock_quantity !== null) {
+                        if ($variant->stock_quantity < $quantity) {
+                            DB::rollBack();
+                            return response()->json(['errors' => ['stock' => ["Insufficient stock for {$product->name}. Available: {$variant->stock_quantity}"]]], 400);
+                        }
+                    } else {
+                        $availableStock = $product->current_stock ?? $product->stock_quantity;
+                        if ($availableStock !== null && $availableStock < $quantity) {
+                            DB::rollBack();
+                            return response()->json(['errors' => ['stock' => ["Insufficient stock for {$product->name}. Available: {$availableStock}"]]], 400);
+                        }
+                    }
+                }
 
             // Frontend sends the actual displayed price (sale_price / variation price).
             // Since variant IDs are not passed (matching is name-based on frontend),
             // server-side variation lookup always returns null — so frontend price
             // is the only reliable source for variation-based pricing.
             // Use server-calculated price only as fallback when frontend sends nothing.
-            $frontendPrice = isset($item['price']) && (float)$item['price'] > 0
-                ? (float)$item['price']
+            $frontendPrice = isset($item['price']) && (float) $item['price'] > 0
+                ? (float) $item['price']
                 : null;
 
             $itemPrice = $frontendPrice !== null
@@ -421,14 +477,17 @@ class OrderController extends Controller
             if ($appliedCoupon) {
                 $coupon = $appliedCoupon->coupon;
 
-                if (CouponUsage::where('coupon_id', $coupon->id)
-                    ->where('user_id', $user->id)
-                    ->exists()
+                if (
+                    CouponUsage::where('coupon_id', $coupon->id)
+                        ->where('user_id', $user->id)
+                        ->exists()
                 ) {
+                    DB::rollBack();
                     return response()->json(['detail' => 'You have already used this coupon.'], 400);
                 }
 
                 if (!$coupon->isValid()) {
+                    DB::rollBack();
                     return response()->json(['detail' => 'Coupon is no longer valid.'], 400);
                 }
 
@@ -498,6 +557,21 @@ class OrderController extends Controller
                 'product_name' => $item['product']->name,
                 'variation_snapshot' => $variationSnapshot,
             ]);
+
+            if ($item['product']->api_from !== 'mohasagor') {
+                // Deduct Product Stock
+                if ($item['product']->current_stock !== null) {
+                    $item['product']->decrement('current_stock', $item['quantity']);
+                }
+                if ($item['product']->stock_quantity !== null) {
+                    $item['product']->decrement('stock_quantity', $item['quantity']);
+                }
+
+                // Deduct Variation Stock
+                if ($item['variant'] && $item['variant']->stock_quantity !== null) {
+                    $item['variant']->decrement('stock_quantity', $item['quantity']);
+                }
+            }
         }
 
         // Mark coupon as used
@@ -526,9 +600,15 @@ class OrderController extends Controller
                 ]);
         }
 
-        $order->load(['items.product.images', 'items.variation.images']);
+            $order->load(['items.product.images', 'items.variation.images']);
 
-        return response()->json(new OrderResource($order), 201);
+            DB::commit();
+            return response()->json(new OrderResource($order), 201);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['errors' => ['server' => [$e->getMessage()]]], 500);
+        }
     }
 
     public function cancelOrder($order_id, Request $request)
@@ -611,9 +691,10 @@ class OrderController extends Controller
         }
 
         // Prevent duplicate reviews
-        if (Review::where('user_id', $user->id)
-            ->where('product_id', $product->id)
-            ->exists()
+        if (
+            Review::where('user_id', $user->id)
+                ->where('product_id', $product->id)
+                ->exists()
         ) {
             return response()->json([
                 'error' => 'You have already reviewed this product.'
@@ -675,10 +756,10 @@ class OrderController extends Controller
             return response()->json(['errors' => $validator->errors()], 400);
         }
 
-        $order = Order::where(function($query) use ($request) {
-                $query->where('order_number', $request->order_id)
-                      ->orWhere('id', $request->order_id);
-            })
+        $order = Order::where(function ($query) use ($request) {
+            $query->where('order_number', $request->order_id)
+                ->orWhere('id', $request->order_id);
+        })
             ->where('contact_number', $request->phone_number)
             ->with(['items.product.images', 'items.variation.images'])
             ->first();

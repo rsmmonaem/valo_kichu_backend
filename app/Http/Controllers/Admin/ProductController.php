@@ -22,7 +22,8 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->paginate(40);
+        $limit = $request->input('limit', 40);
+        $products = $query->paginate($limit);
 
         return response()->json($products);
     }
@@ -119,6 +120,7 @@ class ProductController extends Controller
                 // Stock
                 'min_order_qty' => $validated['min_order_qty'] ?? 1,
                 'current_stock' => $validated['current_stock'] ?? 0,
+                'stock_quantity' => $validated['current_stock'] ?? 0,
 
                 // Discount
                 'discount_type' => $validated['discount_type'] ?? 'None',
@@ -181,6 +183,10 @@ class ProductController extends Controller
 
         if ($request->has('name')) {
             $data['slug'] = Str::slug($request->name) . '-' . Str::random(6);
+        }
+
+        if (array_key_exists('current_stock', $data)) {
+            $data['stock_quantity'] = $data['current_stock'];
         }
 
         $product->update($data);

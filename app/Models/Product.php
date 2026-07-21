@@ -32,7 +32,7 @@ class Product extends Model
         'discount_type', 'discount_amount', 'tax_amount', 'tax_calculation',
         'shipping_cost', 'shipping_multiply', 'loyalty_point','image','video_link','gallery_images',
         'variations', 'attributes', 'colors', 'tags',
-        'status', 'is_featured', 'is_trending', 'is_discounted','specifications',
+        'status', 'is_active', 'is_featured', 'is_trending', 'is_discounted','specifications',
         'meta_title', 'meta_description', 'meta_keywords', 'meta_image', // SEO Fields
     ];
 

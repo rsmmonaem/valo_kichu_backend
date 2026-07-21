@@ -198,6 +198,25 @@ class DropshippingFeedController extends Controller
 
             foreach ($orderItemsData as $itemData) {
                 $order->items()->create($itemData);
+
+                // Deduct Product Stock for non-Mohasagor products
+                $productToUpdate = Product::find($itemData['product_id']);
+                if ($productToUpdate && $productToUpdate->api_from !== 'mohasagor') {
+                    if ($productToUpdate->current_stock !== null) {
+                        $productToUpdate->decrement('current_stock', $itemData['quantity']);
+                    }
+                    if ($productToUpdate->stock_quantity !== null) {
+                        $productToUpdate->decrement('stock_quantity', $itemData['quantity']);
+                    }
+                    
+                    // Deduct Variation Stock
+                    if (!empty($itemData['product_variation_id'])) {
+                        $variantToUpdate = \App\Models\ProductVariation::find($itemData['product_variation_id']);
+                        if ($variantToUpdate && $variantToUpdate->stock_quantity !== null) {
+                            $variantToUpdate->decrement('stock_quantity', $itemData['quantity']);
+                        }
+                    }
+                }
             }
 
             DB::commit();
