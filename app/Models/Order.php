@@ -42,6 +42,10 @@ class Order extends Model
         'referred_by_id',
         'referral_source',
         'order_type',
+        'call_status',
+        'last_called_at',
+        'next_call_at',
+        'crm_logs',
     ];
 
     protected $casts = [
@@ -50,6 +54,9 @@ class Order extends Model
         'discount' => 'decimal:2',
         'total_price' => 'decimal:2',
         'exchange_rate' => 'decimal:4',
+        'crm_logs' => 'array',
+        'last_called_at' => 'datetime',
+        'next_call_at' => 'datetime',
     ];
 
     public function user()

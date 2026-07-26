@@ -90,7 +90,75 @@ class OrderController extends Controller
                 })->sum('quantity');
         }
 
-        $limit = $request->input('limit', 20);
+        // Build status counts query (all filters except status)
+        $statusCountsQuery = Order::query();
+
+        if ($request->has('order_type')) {
+            if ($request->order_type === 'customer') {
+                $statusCountsQuery->whereIn('order_type', ['direct', 'referral']);
+            } elseif ($request->order_type === 'dropshipper' || $request->order_type === 'dropshipping') {
+                $statusCountsQuery->where('order_type', 'dropshipping');
+            } else {
+                $statusCountsQuery->where('order_type', $request->order_type);
+            }
+        }
+
+        if ($request->has('start_date') && !empty($request->start_date)) {
+            $start = \Carbon\Carbon::parse($request->start_date, 'Asia/Dhaka')->startOfDay()->setTimezone('UTC');
+            $statusCountsQuery->where('created_at', '>=', $start);
+        }
+
+        if ($request->has('end_date') && !empty($request->end_date)) {
+            $end = \Carbon\Carbon::parse($request->end_date, 'Asia/Dhaka')->endOfDay()->setTimezone('UTC');
+            $statusCountsQuery->where('created_at', '<=', $end);
+        }
+
+        if ($request->has('category_id') && !empty($request->category_id)) {
+            $statusCountsQuery->whereHas('items.product', function($q) use ($request) {
+                $q->where('category_id', $request->category_id);
+            });
+        }
+
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = $request->search;
+            $statusCountsQuery->where(function($q) use ($searchTerm) {
+                $q->where('order_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('id', 'like', "%{$searchTerm}%")
+                  ->orWhere('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('email', 'like', "%{$searchTerm}%")
+                  ->orWhere('contact_number', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('user', function($uq) use ($searchTerm) {
+                      $uq->where('name', 'like', "%{$searchTerm}%")
+                         ->orWhere('first_name', 'like', "%{$searchTerm}%")
+                         ->orWhere('last_name', 'like', "%{$searchTerm}%")
+                         ->orWhere('email', 'like', "%{$searchTerm}%")
+                         ->orWhere('phone_number', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        $rawCounts = (clone $statusCountsQuery)
+            ->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        $totalAll = array_sum($rawCounts);
+
+        $statusCounts = [
+            'all' => $totalAll,
+            'pending' => $rawCounts['pending'] ?? 0,
+            'contacted' => $rawCounts['contacted'] ?? 0,
+            'confirmed' => $rawCounts['confirmed'] ?? 0,
+            'purchased_by_admin' => $rawCounts['purchased_by_admin'] ?? 0,
+            'ready_to_ship_bd' => $rawCounts['ready_to_ship_bd'] ?? 0,
+            'shipping' => $rawCounts['shipping'] ?? 0,
+            'delivered' => $rawCounts['delivered'] ?? 0,
+            'cancelled' => $rawCounts['cancelled'] ?? 0,
+            'refunded' => $rawCounts['refunded'] ?? 0,
+        ];
+
+        $limit = $request->input('limit', $request->input('per_page', 20));
         $paginated = $query->paginate($limit);
         $paginatedArray = $paginated->toArray();
         $paginatedArray['summary'] = [
@@ -100,6 +168,7 @@ class OrderController extends Controller
             'category_sales' => $categorySalesAmount,
             'category_items_qty' => $categoryItemsQty,
         ];
+        $paginatedArray['status_counts'] = $statusCounts;
 
         return response()->json($paginatedArray);
     }
@@ -114,7 +183,7 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
 
         $validated = $request->validate([
-            'status' => 'sometimes|in:pending,confirmed,purchased_by_admin,ready_to_ship_bd,shipping,delivered,cancelled,refunded',
+            'status' => 'sometimes|in:pending,contacted,confirmed,purchased_by_admin,ready_to_ship_bd,shipping,delivered,cancelled,refunded',
             'payment_status' => 'sometimes|in:unpaid,paid,partial',
             'tracking_id' => 'nullable|string',
             'shipping_cost' => 'sometimes|numeric|min:0',
@@ -124,6 +193,10 @@ class OrderController extends Controller
             'shipping_address' => 'sometimes|string',
             'contact_number' => 'sometimes|string',
             'notes' => 'sometimes|nullable|string',
+            'call_status' => 'sometimes|nullable|string',
+            'last_called_at' => 'sometimes|nullable|date',
+            'next_call_at' => 'sometimes|nullable|date',
+            'crm_logs' => 'sometimes|nullable|array',
             'items' => 'sometimes|array',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.product_variation_id' => 'nullable|integer',
@@ -188,5 +261,100 @@ class OrderController extends Controller
         });
 
         return response()->json($order->load(['items.product', 'user.dropshipperProfile', 'items.variation']));
+    }
+
+    public function customerHistory(Request $request)
+    {
+        $userId = $request->query('user_id');
+        $phone = $request->query('phone') ?? $request->query('contact_number');
+        $email = $request->query('email');
+        $excludeId = $request->query('exclude_id');
+
+        if (!$userId && !$phone && !$email) {
+            return response()->json([]);
+        }
+
+        $query = Order::with(['items.product'])->latest();
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        $query->where(function ($q) use ($userId, $phone, $email) {
+            $hasCondition = false;
+            if ($userId) {
+                $q->where('user_id', $userId);
+                $hasCondition = true;
+            }
+            if ($phone) {
+                if ($hasCondition) {
+                    $q->orWhere('contact_number', $phone);
+                } else {
+                    $q->where('contact_number', $phone);
+                    $hasCondition = true;
+                }
+            }
+            if ($email) {
+                if ($hasCondition) {
+                    $q->orWhere('email', $email);
+                } else {
+                    $q->where('email', $email);
+                }
+            }
+        });
+
+        $orders = $query->take(20)->get();
+
+        return response()->json($orders);
+    }
+
+    public function addCrmLog(Request $request, string $id)
+    {
+        $order = Order::findOrFail($id);
+
+        $validated = $request->validate([
+            'call_status' => 'required|string',
+            'last_called_at' => 'nullable|date',
+            'next_call_at' => 'nullable|date',
+            'note' => 'nullable|string',
+        ]);
+
+        $logs = $order->crm_logs ?? [];
+        if (!is_array($logs)) {
+            $logs = [];
+        }
+
+        $calledAt = !empty($validated['last_called_at'])
+            ? \Carbon\Carbon::parse($validated['last_called_at'])->toIso8601String()
+            : now()->toIso8601String();
+
+        $nextCallAt = !empty($validated['next_call_at'])
+            ? \Carbon\Carbon::parse($validated['next_call_at'])->toIso8601String()
+            : null;
+
+        $newLog = [
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'call_status' => $validated['call_status'],
+            'called_at' => $calledAt,
+            'next_call_at' => $nextCallAt,
+            'note' => $validated['note'] ?? '',
+            'created_at' => now()->toIso8601String(),
+            'created_by' => auth()->user()->name ?? 'Admin',
+        ];
+
+        array_unshift($logs, $newLog);
+
+        $order->call_status = $validated['call_status'];
+        $order->last_called_at = $calledAt;
+        if ($nextCallAt) {
+            $order->next_call_at = $nextCallAt;
+        }
+        $order->crm_logs = $logs;
+        $order->save();
+
+        return response()->json([
+            'message' => 'CRM call log added successfully',
+            'order' => $order->fresh(['items.product', 'user.dropshipperProfile', 'items.variation'])
+        ]);
     }
 }

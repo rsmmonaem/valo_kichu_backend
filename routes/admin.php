@@ -37,6 +37,8 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('brands', BrandController::class);
     Route::apiResource('products', ProductController::class);
+    Route::get('/orders/customer-history', [AdminOrderController::class, 'customerHistory']);
+    Route::post('/orders/{id}/crm-log', [AdminOrderController::class, 'addCrmLog']);
     Route::apiResource('orders', AdminOrderController::class)->only(['index', 'show', 'update']);
     Route::apiResource('banners', BannerController::class);
     Route::apiResource('shipping-methods', ShippingMethodController::class);
