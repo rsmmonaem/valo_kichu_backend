@@ -22,6 +22,10 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('/customers', [CustomerController::class, 'index']);
     Route::put('/customers/{id}/status', [CustomerController::class, 'toggleStatus']);
+    
+    // Visitor Tracking
+    Route::get('/visitors', [\App\Http\Controllers\Admin\VisitorController::class, 'index']);
+    Route::get('/visitors/{id}/page-views', [\App\Http\Controllers\Admin\VisitorController::class, 'show']);
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('brands', BrandController::class);
     Route::apiResource('products', ProductController::class);

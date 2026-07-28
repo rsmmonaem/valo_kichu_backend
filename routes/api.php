@@ -85,6 +85,7 @@ Route::post('/admin/v1/mohasagor/import', [ProductImportController::class, 'impo
 // Public Routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/track-visitor', [\App\Http\Controllers\Api\VisitorTrackingController::class, 'track']);
 
 // --category seeder
 
