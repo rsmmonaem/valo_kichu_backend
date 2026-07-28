@@ -34,6 +34,10 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::get('/checkout-leads/stats', [CheckoutLeadAdminController::class, 'stats']);
     Route::delete('/checkout-leads/{id}', [CheckoutLeadAdminController::class, 'destroy']);
     Route::post('/checkout-leads/{id}/convert', [CheckoutLeadAdminController::class, 'convert']);
+
+    // Visitor Tracking
+    Route::get('/visitors', [\App\Http\Controllers\Admin\VisitorController::class, 'index']);
+    Route::get('/visitors/{id}/page-views', [\App\Http\Controllers\Admin\VisitorController::class, 'show']);
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('brands', BrandController::class);
     Route::apiResource('products', ProductController::class);
