@@ -41,11 +41,15 @@ class Order extends Model
         'transaction_id',
         'referred_by_id',
         'referral_source',
+        'page_name',
         'order_type',
         'call_status',
         'last_called_at',
         'next_call_at',
         'crm_logs',
+        'courier_name',
+        'courier_consignment_id',
+        'courier_status',
     ];
 
     protected $casts = [

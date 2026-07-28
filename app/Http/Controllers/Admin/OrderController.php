@@ -197,6 +197,7 @@ class OrderController extends Controller
             'last_called_at' => 'sometimes|nullable|date',
             'next_call_at' => 'sometimes|nullable|date',
             'crm_logs' => 'sometimes|nullable|array',
+            'page_name' => 'sometimes|nullable|string',
             'items' => 'sometimes|array',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.product_variation_id' => 'nullable|integer',
@@ -356,5 +357,84 @@ class OrderController extends Controller
             'message' => 'CRM call log added successfully',
             'order' => $order->fresh(['items.product', 'user.dropshipperProfile', 'items.variation'])
         ]);
+    }
+
+    public function sendCourier(Request $request, string $id)
+    {
+        $order = Order::with('user')->findOrFail($id);
+
+        $validated = $request->validate([
+            'courier_name' => 'required|string',
+            'recipient_name' => 'nullable|string',
+            'recipient_phone' => 'nullable|string',
+            'recipient_address' => 'nullable|string',
+            'cod_amount' => 'nullable|numeric',
+            'note' => 'nullable|string',
+        ]);
+
+        $courierName = strtolower($validated['courier_name']);
+
+        if ($courierName === 'steadfast') {
+            $steadfastService = new \App\Services\SteadfastService();
+
+            // Extract shipping address clean text
+            $recipientAddress = $validated['recipient_address'] ?? null;
+            if (empty($recipientAddress)) {
+                try {
+                    $addr = json_decode($order->shipping_address, true);
+                    if ($addr && is_array($addr)) {
+                        $recipientAddress = implode(', ', array_filter([
+                            $addr['address'] ?? '',
+                            $addr['area'] ?? '',
+                            $addr['city'] ?? ''
+                        ]));
+                    } else {
+                        $recipientAddress = $order->shipping_address;
+                    }
+                } catch (\Exception $e) {
+                    $recipientAddress = $order->shipping_address;
+                }
+            }
+
+            $recipientName = $validated['recipient_name'] ?? ($order->name ?: ($order->user->name ?? 'Customer'));
+            $recipientPhone = $validated['recipient_phone'] ?? ($order->contact_number ?: ($order->phone ?: ''));
+            $codAmount = isset($validated['cod_amount']) ? (float)$validated['cod_amount'] : (float)$order->total_price;
+            $note = $validated['note'] ?? ($order->notes ?? '');
+
+            $result = $steadfastService->createOrder([
+                'invoice' => $order->order_number ?: (string)$order->id,
+                'recipient_name' => $recipientName,
+                'recipient_phone' => $recipientPhone,
+                'recipient_address' => $recipientAddress,
+                'cod_amount' => $codAmount,
+                'note' => $note,
+            ]);
+
+            if ($result['success']) {
+                $order->courier_name = 'Steadfast';
+                $order->courier_consignment_id = $result['consignment_id'] ?? null;
+                $order->courier_status = $result['status'] ?? 'in_review';
+                if (!empty($result['tracking_code'])) {
+                    $order->tracking_id = $result['tracking_code'];
+                }
+                $order->status = 'confirmed';
+                $order->save();
+
+                return response()->json([
+                    'message' => 'Order successfully sent to Steadfast Courier!',
+                    'order' => $order->fresh(['items.product', 'user.dropshipperProfile', 'items.variation']),
+                    'result' => $result,
+                ]);
+            } else {
+                return response()->json([
+                    'message' => $result['message'] ?? 'Failed to send order to Steadfast Courier.',
+                    'result' => $result,
+                ], 400);
+            }
+        }
+
+        return response()->json([
+            'message' => "Courier '{$validated['courier_name']}' is not supported currently.",
+        ], 400);
     }
 }

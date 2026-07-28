@@ -46,7 +46,7 @@ Route::get('/fixall', function () {
 });
 Route::get('migrate-checkout-leads', function () {
     \Artisan::call('migrate', [
-        '--path' => 'database/migrations/2026_07_20_113351_add_is_unlimited_to_ip_logs_table.php',
+        '--path' => 'database/migrations/2026_07_27_120000_create_source_pages_table.php',
         '--force' => true,
     ]);
 

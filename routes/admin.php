@@ -39,6 +39,7 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::get('/orders/customer-history', [AdminOrderController::class, 'customerHistory']);
     Route::post('/orders/{id}/crm-log', [AdminOrderController::class, 'addCrmLog']);
+    Route::post('/orders/{id}/send-courier', [AdminOrderController::class, 'sendCourier']);
     Route::apiResource('orders', AdminOrderController::class)->only(['index', 'show', 'update']);
     Route::apiResource('banners', BannerController::class);
     Route::apiResource('shipping-methods', ShippingMethodController::class);
@@ -51,6 +52,9 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::post('/ip-logs/{id}/reset', [IpLogController::class, 'reset']);
     Route::post('/ip-logs/{id}/toggle-unlimited', [IpLogController::class, 'toggleUnlimited']);
     Route::delete('/ip-logs/{id}', [IpLogController::class, 'delete']);
+
+    // Source Pages (Facebook / Store Pages)
+    Route::apiResource('source-pages', \App\Http\Controllers\Admin\SourcePageController::class)->only(['index', 'store', 'destroy']);
 
     // Dropshipping Management
     Route::group(['prefix' => 'dropshipping'], function () {
