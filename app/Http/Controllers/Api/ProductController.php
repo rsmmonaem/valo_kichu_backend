@@ -44,12 +44,27 @@ class ProductController extends Controller
         }
 
         // Search
-        if ($request->has('search')) {
-            $search = $request->search;
+        if ($request->has('search') && !empty(trim($request->search))) {
+            $search = trim($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('product_code', 'like', "%{$search}%")
+                  ->orWhere('tags', 'like', "%{$search}%")
+                  ->orWhereHas('category', function ($catQ) use ($search) {
+                      $catQ->where('name', 'like', "%{$search}%");
+                  })
                   ->orWhere('description', 'like', "%{$search}%");
             });
+
+            // Relevance ordering: exact name match first, then name contains search term, then others
+            $query->orderByRaw("
+                CASE 
+                    WHEN name LIKE ? THEN 1
+                    WHEN name LIKE ? THEN 2
+                    WHEN product_code LIKE ? THEN 3
+                    ELSE 4
+                END ASC
+            ", ["{$search}", "%{$search}%", "%{$search}%"]);
         }
 
         // Sorting

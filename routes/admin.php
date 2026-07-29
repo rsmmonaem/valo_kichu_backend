@@ -18,10 +18,12 @@ use App\Http\Controllers\Admin\WithdrawalController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CheckoutLeadAdminController;
 use App\Http\Controllers\Admin\IpLogController;
+use App\Http\Controllers\Admin\ReportController;
 
 // Admin Routes
 Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+    Route::get('/reports/courier', [ReportController::class, 'courierReport']);
     Route::get('/customers', [CustomerController::class, 'index']);
     Route::put('/customers/{id}/status', [CustomerController::class, 'toggleStatus']);
 

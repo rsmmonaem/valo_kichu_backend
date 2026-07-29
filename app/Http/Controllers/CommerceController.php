@@ -371,8 +371,8 @@ class CommerceController extends Controller
         // We will cache common types 
         $cacheKey = 'product_sections_' . $productType . '_limit_' . $limit . '_offset_' . $offset . '_user_' . ($user ? $user->id : 'guest');
 
-        // Only cache for guest users or non-personalized types to avoid complexity with user-specific cache
-        if (!$user && in_array($productType, ['newarrival', 'top_products', 'best_selling', 'latest', 'featured', 'featured_deals'])) {
+        // Only cache for guest users or non-personalized types to avoid complexity with user-specific cache (except newarrival which generates random selection per request)
+        if (!$user && in_array($productType, ['top_products', 'best_selling', 'latest', 'featured', 'featured_deals'])) {
              return Cache::remember($cacheKey, 30 * 60, function () use ($productType, $limit, $offset, $baseQuery) {
                  return $this->executeProductSectionQuery($productType, null, $limit, $offset, clone $baseQuery);
              });
@@ -387,7 +387,25 @@ class CommerceController extends Controller
 
         switch ($productType) {
             case 'newarrival':
-                $products = (clone $baseQuery)->orderBy('created_at', 'desc')->get();
+                $categories = Category::where('is_active', true)->get();
+                $allNewProducts = collect();
+                foreach ($categories as $cat) {
+                    $catProducts = (clone $baseQuery)
+                        ->where('category_id', $cat->id)
+                        ->orderBy('created_at', 'desc')
+                        ->limit(10)
+                        ->get();
+                    if ($catProducts->isNotEmpty()) {
+                        // Take 2-3 random items from this category's latest products
+                        $takeCount = min($catProducts->count(), rand(2, 3));
+                        $allNewProducts = $allNewProducts->concat($catProducts->random($takeCount));
+                    }
+                }
+                // Also get latest products without category if any, or shuffle all collected products
+                $products = $allNewProducts->shuffle()->values();
+                if ($products->isEmpty()) {
+                    $products = (clone $baseQuery)->orderBy('created_at', 'desc')->get();
+                }
                 break;
 
             case 'discounted':

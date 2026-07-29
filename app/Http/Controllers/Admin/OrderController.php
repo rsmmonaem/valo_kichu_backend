@@ -37,6 +37,18 @@ class OrderController extends Controller
             $query->where('created_at', '<=', $end);
         }
 
+        if ($request->has('courier_name') && !empty($request->courier_name)) {
+            if ($request->courier_name === 'unassigned') {
+                $query->whereNull('courier_name');
+            } else {
+                $query->where('courier_name', $request->courier_name);
+            }
+        }
+
+        if ($request->has('page_name') && !empty($request->page_name)) {
+            $query->where('page_name', $request->page_name);
+        }
+
         if ($request->has('category_id') && !empty($request->category_id)) {
             $query->whereHas('items.product', function($q) use ($request) {
                 $q->where('category_id', $request->category_id);
@@ -111,6 +123,18 @@ class OrderController extends Controller
         if ($request->has('end_date') && !empty($request->end_date)) {
             $end = \Carbon\Carbon::parse($request->end_date, 'Asia/Dhaka')->endOfDay()->setTimezone('UTC');
             $statusCountsQuery->where('created_at', '<=', $end);
+        }
+
+        if ($request->has('courier_name') && !empty($request->courier_name)) {
+            if ($request->courier_name === 'unassigned') {
+                $statusCountsQuery->whereNull('courier_name');
+            } else {
+                $statusCountsQuery->where('courier_name', $request->courier_name);
+            }
+        }
+
+        if ($request->has('page_name') && !empty($request->page_name)) {
+            $statusCountsQuery->where('page_name', $request->page_name);
         }
 
         if ($request->has('category_id') && !empty($request->category_id)) {
@@ -431,6 +455,18 @@ class OrderController extends Controller
                     'result' => $result,
                 ], 400);
             }
+        }
+
+        if ($courierName === 'self' || $courierName === 'self_delivery') {
+            $order->courier_name = 'Self Delivery';
+            $order->courier_status = 'confirmed';
+            $order->status = 'confirmed';
+            $order->save();
+
+            return response()->json([
+                'message' => 'Order status updated to Confirmed (Self Delivery)!',
+                'order' => $order->fresh(['items.product', 'user.dropshipperProfile', 'items.variation']),
+            ]);
         }
 
         return response()->json([

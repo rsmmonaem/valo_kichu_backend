@@ -13,9 +13,11 @@ class UploadController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'folder' => 'required|string',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp,svg|max:2048',
+            'folder' => 'nullable|string',
         ]);
+
+        $folder = $request->input('folder', 'pages');
 
         if ($request->hasFile('image')) {
             try {
@@ -23,7 +25,7 @@ class UploadController extends Controller
                 $filename = Str::random(20) . '.' . $file->getClientOriginalExtension();
                 
                 // Store file using 'public' disk
-                $path = $file->storeAs($request->folder, $filename, 'public');
+                $path = $file->storeAs($folder, $filename, 'public');
                 
                 Log::info('File uploaded', [
                     'filename' => $filename,
