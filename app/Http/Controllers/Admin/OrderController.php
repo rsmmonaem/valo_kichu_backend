@@ -290,12 +290,18 @@ class OrderController extends Controller
 
     public function customerHistory(Request $request)
     {
-        $userId = $request->query('user_id');
-        $phone = $request->query('phone') ?? $request->query('contact_number');
-        $email = $request->query('email');
+        $phone = trim($request->query('phone') ?? $request->query('contact_number') ?? '');
+        $email = trim($request->query('email') ?? '');
         $excludeId = $request->query('exclude_id');
 
-        if (!$userId && !$phone && !$email) {
+        if (in_array(strtolower($phone), ['', 'n/a', 'null', 'undefined'])) {
+            $phone = null;
+        }
+        if (in_array(strtolower($email), ['', 'n/a', 'null', 'undefined'])) {
+            $email = null;
+        }
+
+        if (!$phone && !$email) {
             return response()->json([]);
         }
 
@@ -305,19 +311,11 @@ class OrderController extends Controller
             $query->where('id', '!=', $excludeId);
         }
 
-        $query->where(function ($q) use ($userId, $phone, $email) {
+        $query->where(function ($q) use ($phone, $email) {
             $hasCondition = false;
-            if ($userId) {
-                $q->where('user_id', $userId);
-                $hasCondition = true;
-            }
             if ($phone) {
-                if ($hasCondition) {
-                    $q->orWhere('contact_number', $phone);
-                } else {
-                    $q->where('contact_number', $phone);
-                    $hasCondition = true;
-                }
+                $q->where('contact_number', $phone);
+                $hasCondition = true;
             }
             if ($email) {
                 if ($hasCondition) {
