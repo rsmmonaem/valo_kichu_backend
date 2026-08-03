@@ -79,7 +79,7 @@ class OrderController extends Controller
         
         // Only sum total sales for valid order statuses
         $validSalesQuery = clone $query;
-        $validSalesQuery->whereNotIn('status', ['pending', 'cancelled', 'refunded']);
+        $validSalesQuery->whereNotIn('status', ['pending', 'cancelled', 'refunded', 'returned']);
         $totalSalesAmount = $validSalesQuery->sum('total_price');
         
         $totalItemsQty = \App\Models\OrderItem::whereIn('order_id', $orderIds)->sum('quantity');
@@ -180,6 +180,8 @@ class OrderController extends Controller
             'delivered' => $rawCounts['delivered'] ?? 0,
             'cancelled' => $rawCounts['cancelled'] ?? 0,
             'refunded' => $rawCounts['refunded'] ?? 0,
+            'transfer_to_courier' => $rawCounts['transfer_to_courier'] ?? 0,
+            'returned' => $rawCounts['returned'] ?? 0,
         ];
 
         $limit = $request->input('limit', $request->input('per_page', 20));
@@ -207,7 +209,7 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
 
         $validated = $request->validate([
-            'status' => 'sometimes|in:pending,contacted,confirmed,purchased_by_admin,ready_to_ship_bd,shipping,delivered,cancelled,refunded',
+            'status' => 'sometimes|in:pending,contacted,confirmed,purchased_by_admin,ready_to_ship_bd,shipping,delivered,cancelled,refunded,transfer_to_courier,returned',
             'payment_status' => 'sometimes|in:unpaid,paid,partial',
             'tracking_id' => 'nullable|string',
             'shipping_cost' => 'sometimes|numeric|min:0',
@@ -439,7 +441,7 @@ class OrderController extends Controller
                 if (!empty($result['tracking_code'])) {
                     $order->tracking_id = $result['tracking_code'];
                 }
-                $order->status = 'confirmed';
+                $order->status = 'transfer_to_courier';
                 $order->save();
 
                 return response()->json([
@@ -458,11 +460,11 @@ class OrderController extends Controller
         if ($courierName === 'self' || $courierName === 'self_delivery') {
             $order->courier_name = 'Self Delivery';
             $order->courier_status = 'confirmed';
-            $order->status = 'confirmed';
+            $order->status = 'transfer_to_courier';
             $order->save();
 
             return response()->json([
-                'message' => 'Order status updated to Confirmed (Self Delivery)!',
+                'message' => 'Order status updated to Transferred to Courier (Self Delivery)!',
                 'order' => $order->fresh(['items.product', 'user.dropshipperProfile', 'items.variation']),
             ]);
         }
@@ -470,5 +472,37 @@ class OrderController extends Controller
         return response()->json([
             'message' => "Courier '{$validated['courier_name']}' is not supported currently.",
         ], 400);
+    }
+
+    public function refund(Request $request, string $id)
+    {
+        $order = Order::findOrFail($id);
+
+        $validated = $request->validate([
+            'refund_items' => 'required|array',
+            'refund_items.*.item_id' => 'required|exists:order_items,id',
+            'refund_items.*.refund_quantity' => 'required|integer|min:0',
+        ]);
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $validated) {
+            foreach ($validated['refund_items'] as $refundData) {
+                $item = \App\Models\OrderItem::where('order_id', $order->id)->findOrFail($refundData['item_id']);
+                
+                if ($refundData['refund_quantity'] > $item->quantity) {
+                    throw new \InvalidArgumentException("Refund quantity cannot exceed ordered quantity for item: " . $item->product_name);
+                }
+                
+                $item->refunded_quantity = $refundData['refund_quantity'];
+                $item->save();
+            }
+
+            $order->status = 'refunded';
+            $order->save();
+        });
+
+        return response()->json([
+            'message' => 'Order items refunded successfully',
+            'order' => $order->fresh(['items.product', 'user.dropshipperProfile', 'items.variation'])
+        ]);
     }
 }

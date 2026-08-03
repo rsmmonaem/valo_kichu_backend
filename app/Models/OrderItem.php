@@ -14,6 +14,7 @@ class OrderItem extends Model
         'product_id',
         'product_variation_id',
         'quantity',
+        'refunded_quantity',
         'unit_price',
         'purchase_price',
         'total_price',
@@ -25,6 +26,7 @@ class OrderItem extends Model
     protected $casts = [
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'refunded_quantity' => 'integer',
     ];
 
     public function order()

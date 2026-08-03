@@ -54,14 +54,14 @@ class ReportController extends Controller
 
         // Get total summary
         $totalOrders = (clone $query)->count();
-        $totalRevenue = (clone $query)->whereNotIn('status', ['pending', 'cancelled', 'refunded'])->sum('total_price');
+        $totalRevenue = (clone $query)->whereNotIn('status', ['pending', 'cancelled', 'refunded', 'returned'])->sum('total_price');
 
         // Group by courier_name and get counts and revenues
         $courierData = (clone $query)
             ->select(
                 DB::raw('COALESCE(courier_name, "Unassigned") as courier'),
                 DB::raw('count(*) as count'),
-                DB::raw('sum(case when status not in ("pending", "cancelled", "refunded") then total_price else 0 end) as revenue')
+                DB::raw('sum(case when status not in ("pending", "cancelled", "refunded", "returned") then total_price else 0 end) as revenue')
             )
             ->groupBy('courier')
             ->get();
@@ -83,7 +83,7 @@ class ReportController extends Controller
             $statuses = [];
             
             // Initialize common statuses to 0
-            $commonStatuses = ['pending', 'confirmed', 'shipping', 'delivered', 'cancelled', 'refunded'];
+            $commonStatuses = ['pending', 'confirmed', 'shipping', 'delivered', 'cancelled', 'refunded', 'transfer_to_courier', 'returned'];
             foreach ($commonStatuses as $st) {
                 $statuses[$st] = 0;
             }
