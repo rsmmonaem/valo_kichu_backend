@@ -11,7 +11,8 @@ class WalletService
      */
     public static function creditWallet($userId, $amount, $type, $description, $orderId = null)
     {
-        if ($amount <= 0) return null;
+        if ($amount <= 0)
+            return null;
         return DB::transaction(function () use ($userId, $amount, $type, $description, $orderId) {
             $transaction = WalletTransaction::create([
                 'user_id' => $userId,
@@ -32,16 +33,18 @@ class WalletService
     public static function distributeCommissions(Order $order)
     {
         $order->load(['items.product', 'user.parent.parent']);
-        if (!$order->user->isAnyDropshipper()) {
+        if (!$order->user || !$order->user->isAnyDropshipper()) {
             return;
         }
         foreach ($order->items as $item) {
             $product = $item->product;
-            if (!$product) continue;
+            if (!$product)
+                continue;
             $retailPrice = (float) $product->base_price;
             $purchasePrice = (float) $item->purchase_price ?: (float) $product->purchase_price;
             $profitPool = max(0, $retailPrice - $purchasePrice);
-            if ($profitPool <= 0) continue;
+            if ($profitPool <= 0)
+                continue;
             $seller = $order->user;
             $qty = $item->quantity;
             // Tiered Margins (percentage of profit pool)
@@ -58,7 +61,7 @@ class WalletService
                 if ($seller->parent && $seller->parent->role === 'sub_dropshipper') {
                     $subProfit = $profitPool * (($margins['sub_dropshipper'] - $margins['sub_sub_dropshipper']) / 100) * $qty;
                     self::creditWallet($seller->parent->id, $subProfit, 'referral_commission', "Indirect Commission from {$seller->first_name} for Order #{$order->order_number}", $order->id);
-                    
+
                     // Grand-parent (Dropshipper) gets (30% - 20%) = 10%
                     if ($seller->parent->parent && $seller->parent->parent->role === 'dropshipper') {
                         $mainProfit = $profitPool * (($margins['dropshipper'] - $margins['sub_dropshipper']) / 100) * $qty;

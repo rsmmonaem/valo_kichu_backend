@@ -420,7 +420,7 @@ class OrderController extends Controller
                 }
             }
 
-            $recipientName = $validated['recipient_name'] ?? ($order->name ?: ($order->user->name ?? 'Customer'));
+            $recipientName = $validated['recipient_name'] ?? ($order->name ?: ($order->user?->name ?? 'Customer'));
             $recipientPhone = $validated['recipient_phone'] ?? ($order->contact_number ?: ($order->phone ?: ''));
             $codAmount = isset($validated['cod_amount']) ? (float)$validated['cod_amount'] : (float)$order->total_price;
             $note = $validated['note'] ?? ($order->notes ?? '');

@@ -46,7 +46,7 @@ Route::get('/fixall', function () {
 });
 Route::get('migrate-checkout-leads', function () {
     \Artisan::call('migrate', [
-        '--path' => 'database/migrations/2026_07_27_120000_create_source_pages_table.php',
+        '--path' => 'database/migrations/2026_08_03_122118_add_refunded_quantity_to_order_items_table.php',
         '--force' => true,
     ]);
 
