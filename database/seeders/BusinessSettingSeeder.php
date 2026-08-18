@@ -80,5 +80,8 @@ class BusinessSettingSeeder extends Seeder
         // Business Name (for API compatibility)
         BusinessSetting::setValue('business_name', 'Ecommatrix', BusinessSetting::TYPE_STRING);
         BusinessSetting::setValue('software_type', 'multi_vendor', BusinessSetting::TYPE_STRING);
+        
+        // Google Analytics
+        BusinessSetting::setValue('google_analytics_id', 'G-L3L8NXP12D', BusinessSetting::TYPE_STRING);
     }
 }
