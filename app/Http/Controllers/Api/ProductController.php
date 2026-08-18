@@ -115,6 +115,36 @@ class ProductController extends Controller
             ], 404);
         }
 
+        $prev = Product::where('id', '<', $product->id)
+            ->where('category_id', $product->category_id)
+            ->where('status', 'active')
+            ->orderBy('id', 'desc')
+            ->first(['slug', 'image']);
+            
+        $next = Product::where('id', '>', $product->id)
+            ->where('category_id', $product->category_id)
+            ->where('status', 'active')
+            ->orderBy('id', 'asc')
+            ->first(['slug', 'image']);
+        
+        if (!$prev) {
+            $prev = Product::where('category_id', $product->category_id)
+                ->where('status', 'active')
+                ->orderBy('id', 'desc')
+                ->first(['slug', 'image']);
+        }
+        if (!$next) {
+            $next = Product::where('category_id', $product->category_id)
+                ->where('status', 'active')
+                ->orderBy('id', 'asc')
+                ->first(['slug', 'image']);
+        }
+
+        $product->setAttribute('prev_slug', $prev?->slug ?? null);
+        $product->setAttribute('next_slug', $next?->slug ?? null);
+        $product->setAttribute('prev_image', $prev?->image ?? null);
+        $product->setAttribute('next_image', $next?->image ?? null);
+
         return response()->json([
             'status' => true,
             'data' => $product
