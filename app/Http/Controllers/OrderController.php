@@ -35,7 +35,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.product_variation_id' => 'nullable|exists:product_variations,id',
+            'items.*.product_variation_id' => 'nullable|integer',
             'items.*.quantity' => 'required|integer|min:1',
             'shipping_address' => 'required|string',
             'contact_number' => 'required|string',
@@ -49,8 +49,15 @@ class OrderController extends Controller
             $subtotal = 0;
             $itemsData = [];
 
+            // Calculate cumulative quantities per product_id
+            $productQuantities = [];
             foreach ($validated['items'] as $item) {
-                // ... (product/variation logic remains same)
+                $pid = $item['product_id'];
+                $qty = (int) $item['quantity'];
+                $productQuantities[$pid] = ($productQuantities[$pid] ?? 0) + $qty;
+            }
+
+            foreach ($validated['items'] as $item) {
                 $product = Product::findOrFail($item['product_id']);
                 $price = $product->sale_price ?? $product->base_price;
                 $variationSnapshot = null;
@@ -77,6 +84,23 @@ class OrderController extends Controller
                             throw \Illuminate\Validation\ValidationException::withMessages(['stock' => "Insufficient stock for {$product->name}. Available: {$availableStock}"]);
                         }
                     }
+                }
+
+                // Apply dynamic bulk discount rules if any
+                $cumulativeQty = $productQuantities[$product->id] ?? 0;
+                $bulkDiscountPerItem = 0;
+                if (!empty($product->bulk_discount_rules) && is_array($product->bulk_discount_rules)) {
+                    foreach ($product->bulk_discount_rules as $rule) {
+                        $minQty = isset($rule['min_qty']) ? (int) $rule['min_qty'] : 0;
+                        $discAmt = isset($rule['discount_amount']) ? (float) $rule['discount_amount'] : 0;
+                        if ($minQty > 0 && $cumulativeQty >= $minQty) {
+                            $bulkDiscountPerItem = max($bulkDiscountPerItem, $discAmt);
+                        }
+                    }
+                }
+
+                if ($bulkDiscountPerItem > 0) {
+                    $price = max(0, $price - $bulkDiscountPerItem);
                 }
 
                 $lineTotal = $price * $item['quantity'];
@@ -357,8 +381,8 @@ class OrderController extends Controller
             'products' => 'required|array',
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|integer|min:1',
-            'products.*.variant_id' => 'nullable|exists:product_variations,id',
-            'products.*.product_variation_id' => 'nullable|exists:product_variations,id', // also accept this key
+            'products.*.variant_id' => 'nullable|integer',
+            'products.*.product_variation_id' => 'nullable|integer', // also accept this key
             'products.*.price' => 'nullable|numeric|min:0', // frontend-sent price
             'payment_method' => 'required|string',
             // 'address_id' => 'required|exists:address,id',
@@ -416,6 +440,14 @@ class OrderController extends Controller
             $totalPrice = 0;
             $orderItems = [];
 
+            // Calculate cumulative quantities per product_id
+            $productQuantities = [];
+            foreach ($request->products as $item) {
+                $pid = $item['product_id'];
+                $qty = (int) $item['quantity'];
+                $productQuantities[$pid] = ($productQuantities[$pid] ?? 0) + $qty;
+            }
+
             foreach ($request->products as $item) {
                 $product = Product::lockForUpdate()->findOrFail($item['product_id']);
 
@@ -440,29 +472,42 @@ class OrderController extends Controller
                     }
                 }
 
-            // Frontend sends the actual displayed price (sale_price / variation price).
-            // Since variant IDs are not passed (matching is name-based on frontend),
-            // server-side variation lookup always returns null — so frontend price
-            // is the only reliable source for variation-based pricing.
-            // Use server-calculated price only as fallback when frontend sends nothing.
-            $frontendPrice = isset($item['price']) && (float) $item['price'] > 0
-                ? (float) $item['price']
-                : null;
+                // Frontend sends the actual displayed price (sale_price / variation price).
+                $frontendPrice = isset($item['price']) && (float) $item['price'] > 0
+                    ? (float) $item['price']
+                    : null;
 
-            $itemPrice = $frontendPrice !== null
-                ? $frontendPrice
-                : $this->getItemPrice($product, $variant);
+                $itemPrice = $frontendPrice !== null
+                    ? $frontendPrice
+                    : $this->getItemPrice($product, $variant);
 
-            $totalPrice += $itemPrice * $quantity;
+                // Apply dynamic bulk discount rules if any
+                $cumulativeQty = $productQuantities[$product->id] ?? 0;
+                $bulkDiscountPerItem = 0;
+                if (!empty($product->bulk_discount_rules) && is_array($product->bulk_discount_rules)) {
+                    foreach ($product->bulk_discount_rules as $rule) {
+                        $minQty = isset($rule['min_qty']) ? (int) $rule['min_qty'] : 0;
+                        $discAmt = isset($rule['discount_amount']) ? (float) $rule['discount_amount'] : 0;
+                        if ($minQty > 0 && $cumulativeQty >= $minQty) {
+                            $bulkDiscountPerItem = max($bulkDiscountPerItem, $discAmt);
+                        }
+                    }
+                }
 
-            $orderItems[] = [
-                'product' => $product,
-                'variant' => $variant,
-                'quantity' => $quantity,
-                'price' => $itemPrice,
-                'variation_snapshot' => $item['variation_snapshot'] ?? null,
-            ];
-        }
+                if ($bulkDiscountPerItem > 0) {
+                    $itemPrice = max(0, $itemPrice - $bulkDiscountPerItem);
+                }
+
+                $totalPrice += $itemPrice * $quantity;
+
+                $orderItems[] = [
+                    'product' => $product,
+                    'variant' => $variant,
+                    'quantity' => $quantity,
+                    'price' => $itemPrice,
+                    'variation_snapshot' => $item['variation_snapshot'] ?? null,
+                ];
+            }
 
         // Handle coupon (Only for logged-in users for now)
         $discountAmount = 0;

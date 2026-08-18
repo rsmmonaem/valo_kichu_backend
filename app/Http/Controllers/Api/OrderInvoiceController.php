@@ -16,7 +16,7 @@ class OrderInvoiceController extends Controller
      */
     public function download($orderId)
     {
-        $order = Order::with('items')->where('id', $orderId)->orWhere('order_number', $orderId)->firstOrFail();
+        $order = Order::with(['items.product', 'items.variation.images'])->where('id', $orderId)->orWhere('order_number', $orderId)->firstOrFail();
 
         $pdf = Pdf::loadView('pdf.invoice', compact('order'));
 
@@ -28,7 +28,7 @@ class OrderInvoiceController extends Controller
      */
     public function preview($orderId)
     {
-        $order = Order::with('items')->where('id', $orderId)->orWhere('order_number', $orderId)->firstOrFail();
+        $order = Order::with(['items.product', 'items.variation.images'])->where('id', $orderId)->orWhere('order_number', $orderId)->firstOrFail();
 
         $pdf = Pdf::loadView('pdf.invoice', compact('order'));
 
@@ -70,7 +70,7 @@ class OrderInvoiceController extends Controller
             'email' => 'required|email'
         ]);
 
-        $order = Order::with('items')->where('id', $orderId)->orWhere('order_number', $orderId)->firstOrFail();
+        $order = Order::with(['items.product', 'items.variation.images'])->where('id', $orderId)->orWhere('order_number', $orderId)->firstOrFail();
 
         // Update email if it was missing or different (optional, but requested by flow)
         if ($request->has('email') && $order->email !== $request->email) {

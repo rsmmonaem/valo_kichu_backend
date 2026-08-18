@@ -104,7 +104,6 @@ class CommerceController extends Controller
         
         // Apply pagination
         $products = $query->skip($skip)->take($limit)->get();
-        // dd($products);
         $totalPages = ceil($total / $limit);
 
         return response()->json([
@@ -114,7 +113,6 @@ class CommerceController extends Controller
             'current_page' => $offset,
             'total_pages' => $totalPages,
             'products' => ProductResource::collection($products)
-            // 'products'=> $products
         ]);
     }
 

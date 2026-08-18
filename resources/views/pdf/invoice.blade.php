@@ -125,10 +125,78 @@
         <tr>
           <td style="vertical-align: top; padding: 8px 5px;">{{ $index + 1 }}</td>
           <td style="vertical-align: top; padding: 8px 5px;">
-            <div class="bold" style="color: #111827; font-size: 11px; word-wrap: break-word; white-space: normal;">{{ $item->product_name }}</div>
-            @if($item->variation_snapshot)
-            <div class="gray" style="font-size: 10px; margin-top: 2px; word-wrap: break-word; white-space: normal;">{{ $item->variation_snapshot }}</div>
-            @endif
+            <table style="width: 100%; border: none;">
+              <tr>
+                @php
+                  $itemImagePath = null;
+                  $imgName = null;
+                  
+                  // 1. Try to find the selected color name
+                  $selectedColorName = null;
+                  if ($item->variation && !empty($item->variation->color)) {
+                      $selectedColorName = $item->variation->color;
+                  } elseif ($item->variation_snapshot) {
+                      if (preg_match('/Color:\s*([^,]+)/i', $item->variation_snapshot, $matches)) {
+                          $selectedColorName = trim($matches[1]);
+                      }
+                  }
+
+                  // 2. Try to get image from variation first
+                  if ($item->variation) {
+                      $varImg = $item->variation->images->first();
+                      if ($varImg && !empty($varImg->image)) {
+                          $imgName = $varImg->image;
+                      }
+                  }
+
+                  // 3. If no image yet, but we have a color name, try to match it in product->colors
+                  if (!$imgName && $selectedColorName && $item->product && is_array($item->product->colors)) {
+                      foreach ($item->product->colors as $color) {
+                          if (isset($color['name']) && strtolower(trim($color['name'])) === strtolower(trim($selectedColorName))) {
+                              if (!empty($color['image'])) {
+                                  $imgName = $color['image'];
+                                  break;
+                              } elseif (!empty($color['color_image'])) {
+                                  $imgName = $color['color_image'];
+                                  break;
+                              }
+                          }
+                      }
+                  }
+
+                  // 4. Fallback to product base image
+                  if (!$imgName && $item->product) {
+                      $imgName = $item->product->image;
+                  }
+
+                  // 5. Build storage file path
+                  if ($imgName) {
+                      $cleanImgName = ltrim(str_replace(['/storage/products/', 'storage/products/', '/products/', 'products/'], '', $imgName), '/');
+                      $path = storage_path('app/public/products/' . $cleanImgName);
+                      if (file_exists($path)) {
+                          $itemImagePath = $path;
+                      } else {
+                          $pathDirect = storage_path('app/public/' . $cleanImgName);
+                          if (file_exists($pathDirect)) {
+                              $itemImagePath = $pathDirect;
+                          }
+                      }
+                  }
+                @endphp
+                @if($itemImagePath && file_exists($itemImagePath))
+                  <td style="width: 45px; padding-right: 10px; border: none; vertical-align: top;">
+                    <img src="data:image/png;base64,{{ base64_encode(file_get_contents($itemImagePath)) }}"
+                         style="width: 35px; height: 35px; object-fit: cover; border-radius: 4px; border: 1px solid #e5e7eb;">
+                  </td>
+                @endif
+                <td style="border: none; vertical-align: top; padding: 0;">
+                  <div class="bold" style="color: #111827; font-size: 11px; word-wrap: break-word; white-space: normal;">{{ $item->product_name }}</div>
+                  @if($item->variation_snapshot)
+                  <div class="gray" style="font-size: 10px; margin-top: 2px; word-wrap: break-word; white-space: normal;">{{ $item->variation_snapshot }}</div>
+                  @endif
+                </td>
+              </tr>
+            </table>
           </td>
           <td class="text-center" style="vertical-align: top; padding: 8px 5px;">{{ $item->quantity }}</td>
           <td class="text-right" style="vertical-align: top; padding: 8px 5px;">TK {{ number_format($item->unit_price, 2) }}</td>
@@ -139,6 +207,29 @@
     </table>
 
     <!-- Totals Section -->
+    @php
+      $originalSubtotal = 0;
+      foreach ($order->items as $item) {
+          $originalItemPrice = 0;
+          if ($item->product) {
+              $originalItemPrice = $item->product->sale_price ?? $item->product->base_price;
+              if ($item->variation) {
+                  $originalItemPrice += $item->variation->price_modifier;
+              }
+          } else {
+              $originalItemPrice = $item->unit_price;
+          }
+          $originalSubtotal += $originalItemPrice * $item->quantity;
+      }
+      
+      $actualItemsTotal = 0;
+      foreach ($order->items as $item) {
+          $actualItemsTotal += $item->unit_price * $item->quantity;
+      }
+
+      $bulkDiscount = max(0, $originalSubtotal - $actualItemsTotal);
+      $totalDiscountAmount = $bulkDiscount + $order->discount;
+    @endphp
     <table style="margin-top: 30px;">
       <tr>
         <td style="width: 60%;"></td>
@@ -146,7 +237,7 @@
           <table style="width: 100%;">
             <tr>
               <td style="padding: 5px 0;">Sub Total</td>
-              <td class="text-right" style="padding: 5px 0;">TK {{ number_format($order->subtotal, 2) }}</td>
+              <td class="text-right" style="padding: 5px 0;">TK {{ number_format($originalSubtotal, 2) }}</td>
             </tr>
             @if($order->shipping_cost > 0)
             <tr>
@@ -154,11 +245,10 @@
               <td class="text-right" style="padding: 5px 0;">TK {{ number_format($order->shipping_cost, 2) }}</td>
             </tr>
             @endif
-            @if($order->discount > 0)
+            @if($totalDiscountAmount > 0)
             <tr>
               <td style="padding: 5px 0;">Discount</td>
-              <td class="text-right" style="padding: 5px 0;">-
-                TK {{ number_format($order->discount + $order->shipping_cost - $order->discount, 2) }}</td>
+              <td class="text-right" style="padding: 5px 0;">- TK {{ number_format($totalDiscountAmount, 2) }}</td>
             </tr>
             @endif
             <tr class="bg-light bold">

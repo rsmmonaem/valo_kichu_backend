@@ -31,7 +31,7 @@ class Product extends Model
         'unit_price', 'purchase_price', 'stock_quantity', 'min_order_qty', 'current_stock',
         'discount_type', 'discount_amount', 'tax_amount', 'tax_calculation',
         'shipping_cost', 'shipping_multiply', 'loyalty_point','image','video_link','gallery_images',
-        'variations', 'attributes', 'colors', 'tags',
+        'variations', 'attributes', 'colors', 'tags', 'bulk_discount_rules',
         'status', 'is_active', 'is_featured', 'is_trending', 'is_discounted','specifications',
         'meta_title', 'meta_description', 'meta_keywords', 'meta_image', // SEO Fields
     ];
@@ -58,6 +58,7 @@ class Product extends Model
         'is_trending' => 'boolean',
         'is_discounted' => 'boolean',
         'specifications' => 'array',
+        'bulk_discount_rules' => 'array',
     ];
 
     protected $appends = [

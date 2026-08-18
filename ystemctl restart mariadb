@@ -1,0 +1,25 @@
+[0;1;32m●[0m mariadb.service - MariaDB 10.11.16 database server
+     Loaded: loaded (]8;;file://srv1125397.hstgr.cloud/usr/lib/systemd/system/mariadb.service/usr/lib/systemd/system/mariadb.service]8;;; [0;1;32menabled[0m; preset: [0;1;38;5;185mdisabled[0m)
+    Drop-In: /etc/systemd/system/mariadb.service.d
+             └─]8;;file://srv1125397.hstgr.cloud/etc/systemd/system/mariadb.service.d/migrated-from-my.cnf-settings.confmigrated-from-my.cnf-settings.conf]8;;
+     Active: [0;1;32mactive (running)[0m since Thu 2026-02-05 06:30:01 UTC; 1 week 3 days ago
+       Docs: ]8;;man:mariadbd(8)man:mariadbd(8)]8;;
+             ]8;;https://mariadb.com/kb/en/library/systemd/https://mariadb.com/kb/en/library/systemd/]8;;
+   Main PID: 629901 (mariadbd)
+     Status: "Taking your SQL requests now..."
+      Tasks: 43 (limit: 60136)
+     Memory: 599.4M (peak: 619.7M)
+        CPU: 11h 57min 2.413s
+     CGroup: /system.slice/mariadb.service
+             └─[0;38;5;245m629901 /usr/sbin/mariadbd[0m
+
+Feb 15 00:02:46 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15  0:02:46 513942 [Warning] Aborted connection 513942 to db: 'cyberpanel' user: 'cyberpanel' host: 'localhost' (Got an error reading communication packets)
+Feb 15 00:02:46 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15  0:02:46 513945 [Warning] Aborted connection 513945 to db: 'cyberpanel' user: 'cyberpanel' host: 'localhost' (Got an error reading communication packets)
+Feb 15 00:02:46 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15  0:02:46 513941 [Warning] Aborted connection 513941 to db: 'cyberpanel' user: 'cyberpanel' host: 'localhost' (Got an error reading communication packets)
+Feb 15 00:02:46 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15  0:02:46 513944 [Warning] Aborted connection 513944 to db: 'cyberpanel' user: 'cyberpanel' host: 'localhost' (Got an error reading communication packets)
+Feb 15 00:02:46 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15  0:02:46 513943 [Warning] Aborted connection 513943 to db: 'cyberpanel' user: 'cyberpanel' host: 'localhost' (Got an error reading communication packets)
+Feb 15 00:02:46 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15  0:02:46 513940 [Warning] Aborted connection 513940 to db: 'cyberpanel' user: 'cyberpanel' host: 'localhost' (Got an error reading communication packets)
+Feb 15 11:04:09 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15 11:04:09 544020 [Warning] Aborted connection 544020 to db: 'valo_db' user: 'valo_db' host: 'localhost' (Got an error reading communication packets)
+Feb 15 11:14:57 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15 11:14:57 546745 [Warning] Aborted connection 546745 to db: 'valo_db' user: 'valo_db' host: 'localhost' (Got an error reading communication packets)
+Feb 15 11:14:57 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15 11:14:57 546877 [Warning] Aborted connection 546877 to db: 'valo_db' user: 'valo_db' host: 'localhost' (Got an error reading communication packets)
+Feb 15 12:25:47 srv1125397.hstgr.cloud mariadbd[629901]: 2026-02-15 12:25:47 554916 [Warning] Aborted connection 554916 to db: 'cyberpanel' user: 'cyberpanel' host: 'localhost' (Got an error reading communication packets)

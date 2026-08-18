@@ -84,6 +84,7 @@ class ProductController extends Controller
             'attributes' => 'nullable|array',
             'colors' => 'nullable|array',
             'tags' => 'nullable|array',
+            'bulk_discount_rules' => 'nullable|array',
 
             // Status
             'status' => 'nullable|string',
@@ -145,6 +146,7 @@ class ProductController extends Controller
                 'attributes' => $validated['attributes'] ?? [],
                 'colors' => $request->colors ?? [],
                 'tags' => $request->tags ?? [],
+                'bulk_discount_rules' => $validated['bulk_discount_rules'] ?? [],
 
                 // Status
                 'status' => $validated['status'] ?? 'active',

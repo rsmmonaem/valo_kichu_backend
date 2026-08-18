@@ -1,0 +1,6 @@
+RewriteEngine On
+RewriteBase /
+RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+RewriteCond %{REQUEST_URI} !^/extract\.php$
+RewriteCond %{REQUEST_URI} !^/deploy\.zip$
+RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
