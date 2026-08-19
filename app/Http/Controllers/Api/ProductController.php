@@ -46,11 +46,15 @@ class ProductController extends Controller
         // Search
         if ($request->has('search') && !empty(trim($request->search))) {
             $search = trim($request->search);
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('product_code', 'like', "%{$search}%")
-                  ->orWhere('tags', 'like', "%{$search}%");
-            });
+            $cleanSearch = preg_replace('/[^a-zA-Z0-9 ]/', '', $search);
+            
+            if (!empty($cleanSearch)) {
+                $query->where(function ($q) use ($search, $cleanSearch) {
+                    $q->where('name', 'REGEXP', '(^|[^a-zA-Z0-9])' . $cleanSearch . '($|[^a-zA-Z0-9])')
+                      ->orWhere('product_code', 'like', "%{$search}%")
+                      ->orWhere('tags', 'like', "%{$search}%");
+                });
+            }
 
             // Relevance ordering: exact name match first, then name contains search term, then others
             $query->orderByRaw("

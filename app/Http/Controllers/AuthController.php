@@ -338,10 +338,12 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'first_name' => 'nullable|string|max:255',
             'last_name' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255|unique:users,email,'.$user->id,
             'phone_number' => 'nullable|string|max:15|unique:users,phone_number,'.$user->id,
             'gender' => 'nullable|in:Male,Female,Other',
             'date_of_birth' => 'nullable|date',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'password' => 'nullable|string|min:6',
         ]);
 
         if ($validator->fails()) {
@@ -349,8 +351,12 @@ class AuthController extends Controller
         }
 
         $user->fill($request->only([
-            'first_name', 'last_name', 'phone_number', 'gender', 'date_of_birth',
+            'first_name', 'last_name', 'email', 'phone_number', 'gender', 'date_of_birth',
         ]));
+
+        if ($request->filled('password')) {
+            $user->password = Hash::make($request->password);
+        }
 
         if ($request->hasFile('image')) {
             // Delete old image if exists

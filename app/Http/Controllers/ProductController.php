@@ -23,8 +23,12 @@ class ProductController extends Controller
             });
         }
 
-        if ($request->has('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+        if ($request->has('search') && !empty(trim($request->search))) {
+            $search = trim($request->search);
+            $cleanSearch = preg_replace('/[^a-zA-Z0-9 ]/', '', $search);
+            if (!empty($cleanSearch)) {
+                $query->where('name', 'REGEXP', '(^|[^a-zA-Z0-9])' . $cleanSearch . '($|[^a-zA-Z0-9])');
+            }
         }
 
         // return response()->json($query->paginate(40));
