@@ -49,7 +49,7 @@ export default function Footer() {
                             <li><Link href="/careers" className="hover:text-blue-600 transition-colors">Careers</Link></li>
                             <li><Link href="/privacy" className="hover:text-blue-600 transition-colors">Privacy Policy</Link></li>
                             <li><Link href="/terms" className="hover:text-blue-600 transition-colors">Terms & Conditions</Link></li>
-                            <li><Link href="/sitemap" className="hover:text-blue-600 transition-colors">Sitemap</Link></li>
+                            <li><Link href="/sitemap.xml" className="hover:text-blue-600 transition-colors">Sitemap</Link></li>
                         </ul>
                     </div>
 

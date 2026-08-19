@@ -49,11 +49,7 @@ class ProductController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('product_code', 'like', "%{$search}%")
-                  ->orWhere('tags', 'like', "%{$search}%")
-                  ->orWhereHas('category', function ($catQ) use ($search) {
-                      $catQ->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhere('description', 'like', "%{$search}%");
+                  ->orWhere('tags', 'like', "%{$search}%");
             });
 
             // Relevance ordering: exact name match first, then name contains search term, then others
