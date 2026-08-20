@@ -79,9 +79,11 @@
           <div class="gray"># {{ $order->order_number }}</div>
           <div class="gray" style="font-size: 11px; margin-top: 2px;">Order ID: {{ $order->id }}</div>
           <div style="margin-top: 5px;">
-            <span class="brand-color bold" style="text-transform: uppercase;">{{ $order->payment_status }}</span>
-            @if($order->payment_status !== 'paid')
-            <span style="color: #84c529;"> - PAY INVOICE</span>
+            @if(strtolower($order->payment_status) === 'paid' || strtolower($order->payment_status) === 'complete')
+            <span class="bold" style="text-transform: uppercase; color: #28a745; background-color: #e8f5e9; padding: 3px 10px; border-radius: 4px; border: 1px solid #28a745; display: inline-block; font-size: 13px;">PAID</span>
+            @else
+            <span class="bold" style="text-transform: uppercase; color: #dc3545; background-color: #ffebee; padding: 3px 10px; border-radius: 4px; border: 1px solid #dc3545; display: inline-block; font-size: 13px;">UNPAID</span>
+            <span style="color: #84c529; font-weight: bold; margin-left: 5px;"> - PAY INVOICE</span>
             @endif
           </div>
         </td>
@@ -257,8 +259,8 @@
             </tr>
             <tr class="bg-light bold" style="margin-top: 5px;">
               <td style="padding: 8px;">Amount Due</td>
-              <td class="text-right brand-color" style="padding: 8px;">
-                TK {{ $order->payment_status === 'paid' ? '0.00' : number_format($order->total_price, 2) }}</td>
+              <td class="text-right" style="padding: 8px; color: {{ (strtolower($order->payment_status) === 'paid' || strtolower($order->payment_status) === 'complete') ? '#28a745' : '#dc3545' }};">
+                TK {{ (strtolower($order->payment_status) === 'paid' || strtolower($order->payment_status) === 'complete') ? '0.00' : number_format($order->total_price, 2) }}</td>
             </tr>
           </table>
         </td>

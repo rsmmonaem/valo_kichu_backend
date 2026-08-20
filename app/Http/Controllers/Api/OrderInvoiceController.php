@@ -32,7 +32,13 @@ class OrderInvoiceController extends Controller
 
         $pdf = Pdf::loadView('pdf.invoice', compact('order'));
 
-        return $pdf->stream('invoice-' . $order->order_number . '.pdf');
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="invoice-' . $order->order_number . '.pdf"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     /**

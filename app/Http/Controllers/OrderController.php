@@ -656,6 +656,19 @@ class OrderController extends Controller
                 $user
             );
 
+            // Link transaction and payment IDs to the Order
+            $merchantTxnId = $paymentResult['data']['merchant_transaction_id'] ?? null;
+            $paymentObj = $paymentResult['data']['payment'] ?? null;
+
+            if ($merchantTxnId) {
+                $order->transaction_id = $merchantTxnId;
+                \App\Models\EpsTransaction::where('merchant_transaction_id', $merchantTxnId)->update(['order_id' => $order->id]);
+            }
+            if ($paymentObj && isset($paymentObj->id)) {
+                $order->payment_id = $paymentObj->id;
+            }
+            $order->save();
+
             $order->load(['items.product.images', 'items.variation.images']);
 
             DB::commit();

@@ -362,6 +362,27 @@ class EPSPaymentService
                     $payment->save();
                 }
 
+                // Update Order payment_status to 'paid'
+                $order = null;
+                if ($epsTxn->order_id) {
+                    $order = \App\Models\Order::find($epsTxn->order_id);
+                }
+                if (!$order) {
+                    $order = \App\Models\Order::where('transaction_id', $merchantTransactionId)->first();
+                }
+                if (!$order && $payment) {
+                    $order = \App\Models\Order::where('payment_id', $payment->id)->first();
+                }
+
+                if ($order) {
+                    $order->payment_status = 'paid';
+                    $order->transaction_id = $merchantTransactionId;
+                    if ($payment) {
+                        $order->payment_id = $payment->id;
+                    }
+                    $order->save();
+                }
+
                 return [
                     'success'        => true,
                     'eps_transaction' => $epsTxn->fresh(),
@@ -406,7 +427,28 @@ class EPSPaymentService
     }
 
     /**
-     * Get EPS Bearer Token via /api/account/login.
+     * Safely construct endpoint URL without double slash or outdated route issues.
+     */
+    protected function buildUrl(string $path): string
+    {
+        $base = rtrim($this->baseUrl ?: 'https://pgapi.eps.com.bd', '/');
+
+        // Map legacy/outdated package paths to active OpenAPI v1 endpoints
+        $legacyMap = [
+            '/api/account/login'        => '/v1/Auth/GetToken',
+            'api/account/login'         => '/v1/Auth/GetToken',
+            '/api/payment/initialize'   => '/v1/EPSEngine/InitializeEPS',
+            'api/payment/initialize'    => '/v1/EPSEngine/InitializeEPS',
+            '/api/payment/checkStatus/' => '/v1/EPSEngine/CheckMerchantTransactionStatus',
+            'api/payment/checkStatus/'  => '/v1/EPSEngine/CheckMerchantTransactionStatus',
+        ];
+
+        $cleanPath = $legacyMap[$path] ?? $path;
+        return $base . '/' . ltrim($cleanPath, '/');
+    }
+
+    /**
+     * Get EPS Bearer Token via /v1/Auth/GetToken.
      * 
      * @return array ['success' => bool, 'token' => string|null, 'error' => string|null]
      */
@@ -414,13 +456,14 @@ class EPSPaymentService
     {
         try {
             $xHash = $this->generateHash($this->userName, $this->hashkey);
+            $endpoint = $this->buildUrl($this->config['apiUrl']['GetToken'] ?? '/v1/Auth/GetToken');
 
-            $response = Http::timeout(30)
+            $response = Http::withoutVerifying()->timeout(30)
                 ->withHeaders([
                     'x-hash'       => $xHash,
                     'Content-Type' => 'application/json',
                 ])
-                ->post($this->baseUrl . ($this->config['apiUrl']['GetToken'] ?? '/v1/Auth/GetToken'), [
+                ->post($endpoint, [
                     'userName' => $this->userName,
                     'password' => $this->password,
                 ]);
@@ -542,14 +585,15 @@ class EPSPaymentService
     {
         try {
             $xHash = $this->generateHash($merchantTransactionId, $this->hashkey);
+            $endpoint = $this->buildUrl($this->config['apiUrl']['Initialize'] ?? '/v1/EPSEngine/InitializeEPS');
 
-            $response = Http::timeout(60)
+            $response = Http::withoutVerifying()->timeout(60)
                 ->withHeaders([
                     'x-hash'        => $xHash,
                     'Authorization' => "Bearer {$token}",
                     'Content-Type'  => 'application/json',
                 ])
-                ->post($this->baseUrl . $this->config['apiUrl']['Initialize'], $payload);
+                ->post($endpoint, $payload);
 
             $data = $response->json() ?? [];
 
@@ -597,14 +641,16 @@ class EPSPaymentService
 
             $xHash = $this->generateHash($merchantTransactionId, $this->hashkey);
             $token = $tokenResponse['token'];
+            $baseApi = $this->buildUrl($this->config['apiUrl']['CheckPaymentStatus'] ?? '/v1/EPSEngine/CheckMerchantTransactionStatus');
+            $endpoint = $baseApi . '?merchantTransactionId=' . urlencode($merchantTransactionId);
 
-            $response = Http::timeout(30)
+            $response = Http::withoutVerifying()->timeout(30)
                 ->withHeaders([
                     'x-hash'        => $xHash,
                     'Authorization' => "Bearer {$token}",
                     'Content-Type'  => 'application/json',
                 ])
-                ->get($this->baseUrl . $this->config['apiUrl']['CheckPaymentStatus'] . $merchantTransactionId);
+                ->get($endpoint);
 
             $data = $response->json() ?? [];
 
@@ -615,7 +661,7 @@ class EPSPaymentService
             ]);
 
             // Determine if the payment is truly successful
-            // EPS typically returns status in the response
+            // EPS returns "Status": "Success"
             $epsStatus = $data['Status'] ?? $data['status'] ?? $data['transactionStatus'] ?? null;
             $isVerified = $response->status() === 200 && 
                           in_array(strtolower((string)$epsStatus), ['success', 'completed', 'valid', '1', 'true']);
@@ -624,7 +670,7 @@ class EPSPaymentService
                 'verified'           => $isVerified,
                 'eps_status'         => $epsStatus,
                 'eps_transaction_id' => $data['EPSTransactionId'] ?? $data['TransactionId'] ?? null,
-                'amount'             => $data['Amount'] ?? $data['amount'] ?? $data['totalAmount'] ?? null,
+                'amount'             => $data['TotalAmount'] ?? $data['Amount'] ?? $data['amount'] ?? $data['totalAmount'] ?? null,
                 'raw_response'       => $data,
                 '_http_status'       => $response->status(),
             ];
@@ -700,6 +746,28 @@ class EPSPaymentService
                 $payment->bank_transaction_id = $verificationResult['eps_transaction_id'] ?? null;
                 $payment->gateway_response = $verificationResult;
                 $payment->save();
+            }
+
+            // Update associated Order model payment_status to 'paid'
+            $order = null;
+            if ($epsTxn->order_id) {
+                $order = \App\Models\Order::find($epsTxn->order_id);
+            }
+            if (!$order) {
+                $order = \App\Models\Order::where('transaction_id', $merchantTransactionId)->first();
+            }
+            if (!$order && $payment) {
+                $order = \App\Models\Order::where('payment_id', $payment->id)->first();
+            }
+
+            if ($order) {
+                $order->payment_status = 'paid';
+                $order->transaction_id = $merchantTransactionId;
+                if ($payment) {
+                    $order->payment_id = $payment->id;
+                }
+                $order->save();
+                Log::info("EPS: Order {$order->id} payment_status updated to paid");
             }
 
             Log::info("EPS: Payment verified and completed", [

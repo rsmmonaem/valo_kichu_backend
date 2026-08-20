@@ -286,22 +286,22 @@ class PaymentController extends Controller
      */
     public function verifyEpsPayment(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'merchant_transaction_id' => 'required|string',
-        ]);
+        $merchantTransactionId = $request->input('merchant_transaction_id')
+            ?? $request->input('MerchantTransactionId')
+            ?? $request->input('merchantTransactionId');
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+        if (!$merchantTransactionId) {
+            return response()->json(['errors' => ['merchant_transaction_id' => ['Transaction ID is required']]], 422);
         }
 
         try {
             $epsService = app(EPSPaymentService::class);
-            $result = $epsService->verifyPayment($request->merchant_transaction_id);
+            $result = $epsService->verifyPayment($merchantTransactionId);
 
             return response()->json([
                 'status'                  => $result['success'] ? 'VERIFIED' : 'UNVERIFIED',
                 'message'                 => $result['message'],
-                'merchant_transaction_id' => $request->merchant_transaction_id,
+                'merchant_transaction_id' => $merchantTransactionId,
                 'payment_status'          => $result['eps_transaction']->status ?? null,
                 'verification'            => $result['verification'] ?? null,
             ], $result['success'] ? 200 : 400);
