@@ -174,6 +174,11 @@ Route::group(['prefix' => 'v1'], function () {
     Route::get('/payment/failed', [PaymentController::class, 'paymentFailed']);
     Route::get('/payment/cancel', [PaymentController::class, 'paymentCancel']);
 
+    // EPS Payment Gateway Callbacks - Public (named routes for EPS redirects)
+    Route::get('/eps/success', [PaymentController::class, 'epsSuccess'])->name('eps.success');
+    Route::get('/eps/fail', [PaymentController::class, 'epsFail'])->name('eps.fail');
+    Route::get('/eps/cancel', [PaymentController::class, 'epsCancel'])->name('eps.cancel');
+
     // Invoice routes - Public but linked to order flows
     Route::get('/invoice/{orderId}', [OrderInvoiceController::class, 'download']);
     Route::get('/invoice/{orderId}/preview', [OrderInvoiceController::class, 'preview']);
@@ -228,6 +233,10 @@ Route::group(['prefix' => 'v1'], function () {
         // Payment routes
         Route::post('/payment/init', [PaymentController::class, 'initPayment']);
         Route::post('/payment/complete', [PaymentController::class, 'completePayment']);
+
+        // EPS Payment routes (authenticated, with deduplication)
+        Route::post('/payment/init-eps', [PaymentController::class, 'initEpsPayment']);
+        Route::post('/payment/verify-eps', [PaymentController::class, 'verifyEpsPayment']);
     });
 });
 

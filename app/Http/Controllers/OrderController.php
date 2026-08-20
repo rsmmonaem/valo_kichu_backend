@@ -645,10 +645,25 @@ class OrderController extends Controller
                 ]);
         }
 
+            // Process Payment
+            $paymentService = new \App\Services\PaymentService();
+            $paymentResult = $paymentService->createPayment(
+                $request->payment_method,
+                $totalPrice + ($request->shipping_cost ?? 0),
+                $request->name ?? ($user ? ($user->first_name . ' ' . $user->last_name) : 'Guest'),
+                $request->filled('email') ? $request->email : ($user ? $user->email : ''),
+                $contactNumber,
+                $user
+            );
+
             $order->load(['items.product.images', 'items.variation.images']);
 
             DB::commit();
-            return response()->json(new OrderResource($order), 201);
+
+            return response()->json([
+                'order' => new OrderResource($order),
+                'payment_result' => $paymentResult
+            ], 201);
             
         } catch (\Exception $e) {
             DB::rollBack();

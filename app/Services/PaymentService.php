@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PaymentInfo;
 use App\Models\PaymentGateway;
+use App\Services\EPSPaymentService;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -62,6 +63,43 @@ class PaymentService
                 ],
                 'status' => 201
             ];
+        }
+
+        // Handle EPS Payment Gateway
+        if ($gatewayName === 'eps') {
+            $epsService = app(EPSPaymentService::class);
+            $result = $epsService->initializePayment(
+                idempotencyKey: (string) \Illuminate\Support\Str::uuid(),
+                amount: (float) $amount,
+                customerInfo: [
+                    'name'  => $name,
+                    'email' => $email,
+                    'phone' => $phone,
+                ],
+                userId: $user?->id,
+            );
+
+            if ($result['success']) {
+                return [
+                    'data' => [
+                        'status'       => 'SUCCESS',
+                        'redirect_url' => $result['redirect_url'],
+                        'payment'      => $result['eps_transaction']->paymentInfo ?? $payment,
+                        'merchant_transaction_id' => $result['eps_transaction']->merchant_transaction_id,
+                    ],
+                    'status' => 201
+                ];
+            } else {
+                return [
+                    'data' => [
+                        'status'       => 'FAILED',
+                        'redirect_url' => null,
+                        'message'      => $result['message'],
+                        'payment'      => $payment,
+                    ],
+                    'status' => 400
+                ];
+            }
         }
 
         // Get gateway configuration for Online Gateways
