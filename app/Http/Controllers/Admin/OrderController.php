@@ -182,6 +182,7 @@ class OrderController extends Controller
             'refunded' => $rawCounts['refunded'] ?? 0,
             'transfer_to_courier' => $rawCounts['transfer_to_courier'] ?? 0,
             'returned' => $rawCounts['returned'] ?? 0,
+            'trashed' => (clone $statusCountsQuery)->onlyTrashed()->count(),
         ];
 
         $limit = $request->input('limit', $request->input('per_page', 20));
@@ -504,5 +505,62 @@ class OrderController extends Controller
             'message' => 'Order items refunded successfully',
             'order' => $order->fresh(['items.product', 'user.dropshipperProfile', 'items.variation'])
         ]);
+    }
+
+    public function destroy(string $id)
+    {
+        $order = Order::findOrFail($id);
+        $order->delete();
+        return response()->json(['message' => 'Order moved to trash bin successfully.']);
+    }
+
+    public function trashed(Request $request)
+    {
+        $orders = Order::onlyTrashed()->with('user')->latest()->paginate($request->input('limit', $request->input('per_page', 20)));
+        return response()->json($orders);
+    }
+
+    public function restore(string $id)
+    {
+        $order = Order::onlyTrashed()->findOrFail($id);
+        $order->restore();
+        return response()->json(['message' => 'Order restored successfully.', 'order' => $order->load(['items.product', 'user.dropshipperProfile', 'items.variation'])]);
+    }
+
+    public function forceDelete(string $id)
+    {
+        $order = Order::onlyTrashed()->findOrFail($id);
+        $order->forceDelete();
+        return response()->json(['message' => 'Order permanently deleted.']);
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $ids = $request->input('ids');
+        if (!is_array($ids) || empty($ids)) {
+            return response()->json(['message' => 'No orders selected.'], 400);
+        }
+        Order::whereIn('id', $ids)->delete();
+        return response()->json(['message' => count($ids) . ' orders moved to trash bin.']);
+    }
+
+    public function bulkRestore(Request $request)
+    {
+        $ids = $request->input('ids');
+        if (!is_array($ids) || empty($ids)) {
+            return response()->json(['message' => 'No orders selected.'], 400);
+        }
+        Order::onlyTrashed()->whereIn('id', $ids)->restore();
+        return response()->json(['message' => count($ids) . ' orders restored successfully.']);
+    }
+
+    public function bulkForceDelete(Request $request)
+    {
+        $ids = $request->input('ids');
+        if (!is_array($ids) || empty($ids)) {
+            return response()->json(['message' => 'No orders selected.'], 400);
+        }
+        Order::onlyTrashed()->whereIn('id', $ids)->forceDelete();
+        return response()->json(['message' => count($ids) . ' orders permanently deleted.']);
     }
 }

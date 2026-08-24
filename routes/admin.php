@@ -44,10 +44,16 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('brands', BrandController::class);
     Route::apiResource('products', ProductController::class);
     Route::get('/orders/customer-history', [AdminOrderController::class, 'customerHistory']);
+    Route::get('/orders/trashed', [AdminOrderController::class, 'trashed']);
+    Route::post('/orders/bulk-delete', [AdminOrderController::class, 'bulkDelete']);
+    Route::post('/orders/bulk-restore', [AdminOrderController::class, 'bulkRestore']);
+    Route::post('/orders/bulk-force-delete', [AdminOrderController::class, 'bulkForceDelete']);
+    Route::put('/orders/{id}/restore', [AdminOrderController::class, 'restore']);
+    Route::delete('/orders/{id}/force', [AdminOrderController::class, 'forceDelete']);
     Route::post('/orders/{id}/crm-log', [AdminOrderController::class, 'addCrmLog']);
     Route::post('/orders/{id}/send-courier', [AdminOrderController::class, 'sendCourier']);
     Route::post('/orders/{id}/refund', [AdminOrderController::class, 'refund']);
-    Route::apiResource('orders', AdminOrderController::class)->only(['index', 'show', 'update']);
+    Route::apiResource('orders', AdminOrderController::class)->only(['index', 'show', 'update', 'destroy']);
     Route::apiResource('banners', BannerController::class);
     Route::apiResource('shipping-methods', ShippingMethodController::class);
     Route::post('/upload', [UploadController::class, 'upload']);

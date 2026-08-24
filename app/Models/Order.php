@@ -6,8 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 use App\Models\OrderItem;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class Order extends Model
 {
+    use SoftDeletes;
+
     protected static function booted()
     {
         static::creating(function ($order) {
