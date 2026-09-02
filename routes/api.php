@@ -116,6 +116,12 @@ Route::get('/banners', [BannerController::class, 'index']);
 Route::get('/settings', [SettingController::class, 'index']); // Public Settings
 Route::get('/pages/{type}', [\App\Http\Controllers\Api\PageController::class, 'show']);
 
+// Public Blog Routes
+Route::get('/blogs', [\App\Http\Controllers\BlogController::class, 'index']);
+Route::get('/blogs/featured', [\App\Http\Controllers\BlogController::class, 'featured']);
+Route::get('/blogs/categories', [\App\Http\Controllers\BlogController::class, 'blogCategories']);
+Route::get('/blogs/{slug}', [\App\Http\Controllers\BlogController::class, 'show']);
+
 Route::fallback(function () {
     return response()->json([
         'status' => 'error',

@@ -55,9 +55,18 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::post('/orders/{id}/refund', [AdminOrderController::class, 'refund']);
     Route::apiResource('orders', AdminOrderController::class)->only(['index', 'show', 'update', 'destroy']);
     Route::apiResource('banners', BannerController::class);
+    
+    // Blog Management
+    Route::get('/blogs', [\App\Http\Controllers\BlogController::class, 'adminIndex']);
+    Route::get('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'adminShow']);
+    Route::post('/blogs', [\App\Http\Controllers\BlogController::class, 'store']);
+    Route::put('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'update']);
+    Route::delete('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'destroy']);
+
     Route::apiResource('shipping-methods', ShippingMethodController::class);
     Route::post('/upload', [UploadController::class, 'upload']);
     Route::get('/settings', [SettingController::class, 'index']);
+    Route::post('/feeds/{id}/generate', [App\Http\Controllers\Admin\FeedController::class, 'generate'])->name('feeds.generate');
     Route::post('/settings', [SettingController::class, 'update']);
 
     // IP Logs
