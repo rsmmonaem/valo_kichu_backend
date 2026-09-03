@@ -122,13 +122,6 @@ Route::get('/blogs/featured', [\App\Http\Controllers\BlogController::class, 'fea
 Route::get('/blogs/categories', [\App\Http\Controllers\BlogController::class, 'blogCategories']);
 Route::get('/blogs/{slug}', [\App\Http\Controllers\BlogController::class, 'show']);
 
-Route::fallback(function () {
-    return response()->json([
-        'status' => 'error',
-        'message' => 'API route not found.'
-    ], 404);
-});
-
 Route::group(['prefix' => 'v1'], function () {
     // Config - Public (optional authentication: validates token if present, allows access if not)
     Route::get('/config/app-config', [ConfigController::class, 'appConfig'])->middleware('optional.auth');
@@ -297,3 +290,10 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:sanctum'], function () 
 });
 //ORDER DROPSHIPPER API
 Route::post('/order-dropshipper', [MultipleDropshipperController::class, 'placeOrder']);
+
+Route::fallback(function () {
+    return response()->json([
+        'status' => 'error',
+        'message' => 'API route not found.'
+    ], 404);
+});

@@ -1,12 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthProvider';
+import { useCart } from '../../context/CartContext';
 
 const OrderSuccess = () => {
     const [searchParams] = useSearchParams();
     const orderNumber = searchParams.get('order');
     const { user } = useAuth();
+    const { clearCart } = useCart();
+
+    useEffect(() => {
+        if (clearCart) {
+            clearCart();
+        }
+    }, [clearCart]);
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-20 px-4">
