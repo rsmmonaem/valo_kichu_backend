@@ -21,35 +21,73 @@ class CheckAdminOrBlogger
             return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
         }
 
-        // Full Admin access
-        if (in_array($user->role, ['super_admin', 'admin', 'child_admin'])) {
+        // Full Admin access for Super Admin
+        if ($user->role === 'super_admin') {
             return $next($request);
         }
 
-        // Blogger / Content Writer access: Only allowed for Blogs, Uploads, Categories (read-only), Profile
-        if (in_array($user->role, ['blogger', 'content_writer', 'blog_manager', 'blog_editor'])) {
-            $path = $request->path(); // e.g. "api/admin/v1/blogs", "api/admin/v1/upload"
+        $path = $request->path(); // e.g. "api/admin/v1/orders", "api/admin/v1/blogs", "api/admin/v1/staff"
 
-            // Allowed patterns for Blogger
-            $isBlogRoute = str_contains($path, 'blogs');
-            $isUploadRoute = str_contains($path, 'upload');
-            $isCategoriesRoute = str_contains($path, 'categories') && $request->isMethod('GET');
-            $isProfileRoute = str_contains($path, 'profile') || str_contains($path, 'auth/user');
-
-            if ($isBlogRoute || $isUploadRoute || $isCategoriesRoute || $isProfileRoute) {
+        // Staff / User Management is strictly Super Admin or users with 'users' permission
+        if (str_contains($path, 'staff')) {
+            if ($user->role === 'super_admin' || $user->hasPermission('users')) {
                 return $next($request);
             }
-
             return response()->json([
                 'status' => false,
-                'message' => 'Access denied. Your employee account is restricted to Blog management only.'
+                'message' => 'Access denied. Only Super Administrators can manage staff users.'
             ], 403);
         }
 
-        // Other non-admin roles (customer, dropshipper)
+        // Admin role has access to operational routes
+        if ($user->role === 'admin' || $user->role === 'child_admin') {
+            return $next($request);
+        }
+
+        // Profile, Auth User & Uploads are accessible to all authenticated staff
+        if (str_contains($path, 'profile') || str_contains($path, 'auth/user') || str_contains($path, 'upload')) {
+            return $next($request);
+        }
+
+        // Check module permissions dynamically
+        if (str_contains($path, 'blogs') && $user->hasPermission('blogs')) {
+            return $next($request);
+        }
+
+        if ((str_contains($path, 'products') || str_contains($path, 'brands') || str_contains($path, 'banners')) && $user->hasPermission('products')) {
+            return $next($request);
+        }
+
+        // Categories: write requires 'products', read-only is allowed for blogs
+        if (str_contains($path, 'categories') || str_contains($path, 'sub-categories') || str_contains($path, 'sub-sub-categories')) {
+            if ($user->hasPermission('products') || ($request->isMethod('GET') && $user->hasPermission('blogs'))) {
+                return $next($request);
+            }
+        }
+
+        if ((str_contains($path, 'orders') || str_contains($path, 'shipping-methods')) && $user->hasPermission('orders')) {
+            return $next($request);
+        }
+
+        if ((str_contains($path, 'customers') || str_contains($path, 'checkout-leads') || str_contains($path, 'visitors')) && ($user->hasPermission('customers') || $user->hasPermission('orders'))) {
+            return $next($request);
+        }
+
+        if (str_contains($path, 'reports') && ($user->hasPermission('reports') || $user->hasPermission('orders'))) {
+            return $next($request);
+        }
+
+        if (str_contains($path, 'dropshipping') && $user->hasPermission('dropshippers')) {
+            return $next($request);
+        }
+
+        if ((str_contains($path, 'settings') || str_contains($path, 'page-settings') || str_contains($path, 'ip-logs')) && $user->hasPermission('settings')) {
+            return $next($request);
+        }
+
         return response()->json([
             'status' => false,
-            'message' => 'Access denied. Administrator privileges required.'
+            'message' => 'Access denied. You do not have permission to access this module.'
         ], 403);
     }
 }

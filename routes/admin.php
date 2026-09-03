@@ -19,9 +19,14 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CheckoutLeadAdminController;
 use App\Http\Controllers\Admin\IpLogController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\StaffController;
 
 // Admin Routes
 Route::prefix('v1')->middleware(['auth:sanctum', 'admin.access'])->group(function () {
+    // Staff & Permission Management
+    Route::apiResource('staff', StaffController::class);
+    Route::put('/staff/{id}/status', [StaffController::class, 'toggleStatus']);
+
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('/reports/courier', [ReportController::class, 'courierReport']);
     Route::get('/customers', [CustomerController::class, 'index']);

@@ -32,6 +32,7 @@ class User extends Authenticatable
         'is_active',
         'is_staff',
         'staff_type',
+        'permissions',
         'is_verified',
         'phone_number_verified_at',
         'email_verified_at',
@@ -71,8 +72,10 @@ class User extends Authenticatable
             'image' => 'string', //nullable
             'address' => 'string', //nullable
             'fcm_token' => 'string', //nullable
-            'role' => 'string', //enum: admin, sub_admin, user
+            'role' => 'string', //enum: admin, sub_admin, user, blogger, etc.
             'is_active' => 'boolean', //required
+            'is_staff' => 'boolean',
+            'permissions' => 'array',
             'is_verified' => 'boolean',
             'is_approved' => 'boolean',
             "refer_code" => "string",
@@ -102,7 +105,32 @@ class User extends Authenticatable
 
     public function canAccessAdmin(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin', 'child_admin', 'blogger', 'content_writer', 'blog_manager', 'blog_editor']);
+        return in_array($this->role, ['super_admin', 'admin', 'child_admin', 'blogger', 'content_writer', 'blog_manager', 'blog_editor', 'staff', 'order_manager', 'product_manager']);
+    }
+
+    /**
+     * Check if user has specific permission module
+     */
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isSuperAdmin() || $this->role === 'admin') {
+            return true;
+        }
+
+        // Role-based defaults
+        if ($this->isBlogger() && $permission === 'blogs') {
+            return true;
+        }
+        if ($this->role === 'order_manager' && in_array($permission, ['orders', 'reports'])) {
+            return true;
+        }
+        if ($this->role === 'product_manager' && in_array($permission, ['products', 'categories', 'brands', 'banners'])) {
+            return true;
+        }
+
+        // Check explicit permissions JSON array
+        $perms = is_array($this->permissions) ? $this->permissions : [];
+        return in_array('*', $perms) || in_array($permission, $perms);
     }
 
     public function isCustomer(): bool
