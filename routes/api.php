@@ -283,13 +283,21 @@ Route::prefix('v2')->group(function () {
     Route::get('/store/{refer_code}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getPublicStore']);
 });
 
-// Direct Admin Blog routes for guaranteed resolution
+// Direct Admin Blog & Staff routes for guaranteed resolution
 Route::group(['prefix' => 'admin/v1', 'middleware' => ['auth:sanctum', 'admin.access']], function () {
     Route::get('/blogs', [\App\Http\Controllers\BlogController::class, 'adminIndex']);
     Route::post('/blogs', [\App\Http\Controllers\BlogController::class, 'store']);
     Route::get('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'adminShow']);
     Route::put('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'update']);
     Route::delete('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'destroy']);
+
+    // Direct Staff Routes
+    Route::get('/staff', [\App\Http\Controllers\Admin\StaffController::class, 'index']);
+    Route::post('/staff', [\App\Http\Controllers\Admin\StaffController::class, 'store']);
+    Route::get('/staff/{id}', [\App\Http\Controllers\Admin\StaffController::class, 'show']);
+    Route::put('/staff/{id}', [\App\Http\Controllers\Admin\StaffController::class, 'update']);
+    Route::delete('/staff/{id}', [\App\Http\Controllers\Admin\StaffController::class, 'destroy']);
+    Route::put('/staff/{id}/status', [\App\Http\Controllers\Admin\StaffController::class, 'toggleStatus']);
 });
 
 // Include Admin Routes

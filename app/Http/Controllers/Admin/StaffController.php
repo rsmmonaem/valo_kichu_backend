@@ -58,9 +58,12 @@ class StaffController extends Controller
      */
     public function store(Request $request)
     {
+        $rawInput = trim($request->phone_number);
+        $isEmail = filter_var($rawInput, FILTER_VALIDATE_EMAIL);
+
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone_number' => 'required|string|max:20|unique:users,phone_number',
+            'phone_number' => $isEmail ? 'required|string' : 'required|string|max:25|unique:users,phone_number',
             'email' => 'nullable|email|unique:users,email',
             'password' => 'required|string|min:6',
             'role' => 'required|string',
@@ -72,7 +75,17 @@ class StaffController extends Controller
         $firstName = $nameParts[0] ?? 'Staff';
         $lastName = $nameParts[1] ?? '';
 
-        $email = $request->email ?: 'staff_' . Str::random(6) . '_' . time() . '@valokichu.com';
+        $email = $request->email;
+        $phoneNumber = $rawInput;
+
+        if ($isEmail) {
+            $email = $rawInput;
+            $phoneNumber = '01' . rand(30, 99) . rand(1000000, 9999999);
+        }
+
+        if (empty($email)) {
+            $email = 'staff_' . Str::random(6) . '_' . time() . '@valokichu.com';
+        }
 
         // Set default permissions based on role if not provided
         $permissions = $request->permissions ?? [];
@@ -91,7 +104,7 @@ class StaffController extends Controller
         $user = User::create([
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'phone_number' => $request->phone_number,
+            'phone_number' => $phoneNumber,
             'email' => $email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
