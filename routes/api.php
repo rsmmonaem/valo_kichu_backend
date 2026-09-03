@@ -283,7 +283,15 @@ Route::prefix('v2')->group(function () {
     Route::get('/store/{refer_code}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getPublicStore']);
 });
 
-//need admin api files call
+// Direct Admin Blog routes for guaranteed resolution
+Route::group(['prefix' => 'admin/v1', 'middleware' => 'auth:sanctum'], function () {
+    Route::get('/blogs', [\App\Http\Controllers\BlogController::class, 'adminIndex']);
+    Route::post('/blogs', [\App\Http\Controllers\BlogController::class, 'store']);
+    Route::get('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'adminShow']);
+    Route::put('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'update']);
+    Route::delete('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'destroy']);
+});
+
 // Include Admin Routes
 Route::group(['prefix' => 'admin', 'middleware' => 'auth:sanctum'], function () {
     require base_path('routes/admin.php');

@@ -75,8 +75,13 @@ class BlogController extends Controller
             'category_id' => 'nullable|exists:categories,id',
         ]);
 
-        $slug = Str::slug($request->title);
-        $count = Blog::where('slug', 'LIKE', "{$slug}%")->count();
+        $rawSlug = preg_replace('/[^\p{L}\p{N}\s-]+/u', '', $request->title);
+        $slug = preg_replace('/[\s-]+/u', '-', trim($rawSlug));
+        if (empty($slug)) {
+            $slug = 'blog-' . time();
+        }
+
+        $count = Blog::where('slug', $slug)->orWhere('slug', 'LIKE', "{$slug}-%")->count();
         if ($count > 0) {
             $slug = $slug . '-' . ($count + 1);
         }
@@ -99,8 +104,17 @@ class BlogController extends Controller
         ]);
 
         if ($request->title !== $blog->title) {
-            $slug = Str::slug($request->title);
-            $count = Blog::where('slug', 'LIKE', "{$slug}%")->where('id', '!=', $id)->count();
+            $rawSlug = preg_replace('/[^\p{L}\p{N}\s-]+/u', '', $request->title);
+            $slug = preg_replace('/[\s-]+/u', '-', trim($rawSlug));
+            if (empty($slug)) {
+                $slug = 'blog-' . time();
+            }
+
+            $count = Blog::where('id', '!=', $id)
+                ->where(function ($q) use ($slug) {
+                    $q->where('slug', $slug)->orWhere('slug', 'LIKE', "{$slug}-%");
+                })
+                ->count();
             if ($count > 0) {
                 $slug = $slug . '-' . ($count + 1);
             }
