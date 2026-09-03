@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'hmac.auth' => \App\Http\Middleware\HmacAuthMiddleware::class,
             'ip.security' => \App\Http\Middleware\IpSecurityMiddleware::class,
             'dropshipper.approved' => CheckApprovedDropshipper::class,
+            'admin.access' => \App\Http\Middleware\CheckAdminOrBlogger::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

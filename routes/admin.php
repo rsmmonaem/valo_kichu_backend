@@ -21,7 +21,7 @@ use App\Http\Controllers\Admin\IpLogController;
 use App\Http\Controllers\Admin\ReportController;
 
 // Admin Routes
-Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum', 'admin.access'])->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('/reports/courier', [ReportController::class, 'courierReport']);
     Route::get('/customers', [CustomerController::class, 'index']);

@@ -95,9 +95,14 @@ class User extends Authenticatable
         return $this->role === 'child_admin';
     }
 
-    public function isAdmin(): bool
+    public function isBlogger(): bool
     {
-        return $this->role === 'super_admin' || $this->role === 'child_admin';
+        return in_array($this->role, ['blogger', 'content_writer', 'blog_manager', 'blog_editor']);
+    }
+
+    public function canAccessAdmin(): bool
+    {
+        return in_array($this->role, ['super_admin', 'admin', 'child_admin', 'blogger', 'content_writer', 'blog_manager', 'blog_editor']);
     }
 
     public function isCustomer(): bool

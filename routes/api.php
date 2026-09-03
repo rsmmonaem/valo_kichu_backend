@@ -284,7 +284,7 @@ Route::prefix('v2')->group(function () {
 });
 
 // Direct Admin Blog routes for guaranteed resolution
-Route::group(['prefix' => 'admin/v1', 'middleware' => 'auth:sanctum'], function () {
+Route::group(['prefix' => 'admin/v1', 'middleware' => ['auth:sanctum', 'admin.access']], function () {
     Route::get('/blogs', [\App\Http\Controllers\BlogController::class, 'adminIndex']);
     Route::post('/blogs', [\App\Http\Controllers\BlogController::class, 'store']);
     Route::get('/blogs/{id}', [\App\Http\Controllers\BlogController::class, 'adminShow']);
@@ -293,7 +293,7 @@ Route::group(['prefix' => 'admin/v1', 'middleware' => 'auth:sanctum'], function 
 });
 
 // Include Admin Routes
-Route::group(['prefix' => 'admin', 'middleware' => 'auth:sanctum'], function () {
+Route::group(['prefix' => 'admin', 'middleware' => ['auth:sanctum', 'admin.access']], function () {
     require base_path('routes/admin.php');
 });
 //ORDER DROPSHIPPER API
