@@ -111,22 +111,24 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        $input = trim($request->input('email') ?: $request->input('phone_number') ?: $request->input('login') ?: '');
+
         $validator = Validator::make($request->all(), [
-            'email' => 'nullable|email',
-            'phone_number' => 'required_without:email|string',
             'password' => 'required|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 400);
+        if ($validator->fails() || empty($input)) {
+            return response()->json(['error' => 'Email or phone number and password are required.'], 400);
         }
 
-        if ($request->filled('email')) {
-            $user = User::where('email', $request->email)->first();
-        } elseif ($request->filled('phone_number')) {
-            $user = User::where('phone_number', $request->phone_number)->first();
+        $isEmail = filter_var($input, FILTER_VALIDATE_EMAIL);
+
+        if ($isEmail) {
+            $user = User::where('email', $input)->first();
         } else {
-            return response()->json(['error' => 'Email or phone number is required.'], 400);
+            $user = User::where('phone_number', $input)
+                ->orWhere('email', $input)
+                ->first();
         }
 
         if (! $user || ! Hash::check($request->password, $user->password)) {

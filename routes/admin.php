@@ -38,6 +38,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'admin.access'])->group(functio
 
     // Checkout Leads routes
     Route::get('/checkout-leads', [CheckoutLeadAdminController::class, 'index']);
+    Route::get('/checkout-leads/export', [CheckoutLeadAdminController::class, 'exportCsv']);
     Route::get('/checkout-leads/stats', [CheckoutLeadAdminController::class, 'stats']);
     Route::delete('/checkout-leads/{id}', [CheckoutLeadAdminController::class, 'destroy']);
     Route::post('/checkout-leads/{id}/convert', [CheckoutLeadAdminController::class, 'convert']);

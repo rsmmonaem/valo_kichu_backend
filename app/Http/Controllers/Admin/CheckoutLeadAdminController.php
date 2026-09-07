@@ -21,11 +21,11 @@ class CheckoutLeadAdminController extends Controller
             ->orderByDesc('updated_at');
 
         // Filter by conversion status
-        if ($request->has('converted')) {
+        if ($request->has('converted') && $request->converted !== 'all' && $request->converted !== '') {
             $query->where('converted', filter_var($request->converted, FILTER_VALIDATE_BOOLEAN));
         }
 
-        // Search by name or phone
+        // Search by name, phone or email
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -34,9 +34,123 @@ class CheckoutLeadAdminController extends Controller
             });
         }
 
+        // Date filters
+        if ($startDate = $request->input('start_date')) {
+            $query->whereDate('created_at', '>=', $startDate);
+        }
+        if ($endDate = $request->input('end_date')) {
+            $query->whereDate('created_at', '<=', $endDate);
+        }
+
         $leads = $query->paginate($request->input('per_page', 20));
 
         return response()->json($leads);
+    }
+
+    /**
+     * Export checkout leads to CSV with streaming.
+     */
+    public function exportCsv(Request $request)
+    {
+        $query = CheckoutLead::with('user:id,first_name,last_name,email')
+            ->orderByDesc('created_at');
+
+        // Filter by conversion status
+        if ($request->has('converted') && $request->converted !== 'all' && $request->converted !== '') {
+            $query->where('converted', filter_var($request->converted, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        // Search by name, phone or email
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Date filters
+        if ($startDate = $request->input('start_date')) {
+            $query->whereDate('created_at', '>=', $startDate);
+        }
+        if ($endDate = $request->input('end_date')) {
+            $query->whereDate('created_at', '<=', $endDate);
+        }
+
+        $filename = 'checkout-leads-' . now()->format('Y-m-d_His') . '.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $handle = fopen('php://output', 'w');
+
+            // Write UTF-8 BOM for Excel compatibility (supports Bengali script)
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // CSV Header Row
+            fputcsv($handle, [
+                'Lead ID',
+                'Customer Name',
+                'Phone',
+                'Email',
+                'Delivery Address',
+                'Area',
+                'Status',
+                'Linked Order ID',
+                'Payment Method',
+                'Cart Total (BDT)',
+                'Total Items Qty',
+                'Cart Products',
+                'Customer Notes',
+                'Created At',
+                'Updated At',
+            ], ',', '"', "\\");
+
+            $query->chunk(250, function ($leads) use ($handle) {
+                foreach ($leads as $lead) {
+                    $cartTotal = 0;
+                    $totalQty = 0;
+                    $productsSummary = [];
+
+                    if (is_array($lead->cart_data)) {
+                        foreach ($lead->cart_data as $item) {
+                            $qty = (int) ($item['quantity'] ?? 1);
+                            $price = (float) ($item['price'] ?? 0);
+                            $cartTotal += $price * $qty;
+                            $totalQty += $qty;
+
+                            $name = $item['name'] ?? ('Product #' . ($item['product_id'] ?? ''));
+                            $variant = !empty($item['variation_snapshot']) ? " ({$item['variation_snapshot']})" : "";
+                            $productsSummary[] = "{$name}{$variant} x{$qty} (৳{$price})";
+                        }
+                    }
+
+                    fputcsv($handle, [
+                        $lead->id,
+                        $lead->name ?: 'Guest',
+                        $lead->phone ?: '',
+                        $lead->email ?: '',
+                        $lead->address ?: '',
+                        $lead->area ?: '',
+                        $lead->converted ? 'Converted' : 'Pending',
+                        $lead->order_id ? '#' . $lead->order_id : '',
+                        $lead->payment_method ?: '',
+                        $cartTotal,
+                        $totalQty,
+                        implode("; ", $productsSummary),
+                        $lead->notes ?: '',
+                        $lead->created_at ? $lead->created_at->format('Y-m-d H:i:s') : '',
+                        $lead->updated_at ? $lead->updated_at->format('Y-m-d H:i:s') : '',
+                    ], ',', '"', "\\");
+                }
+            });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     /**
