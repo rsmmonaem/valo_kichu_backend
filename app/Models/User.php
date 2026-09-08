@@ -105,7 +105,7 @@ class User extends Authenticatable
 
     public function canAccessAdmin(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin', 'child_admin', 'blogger', 'content_writer', 'blog_manager', 'blog_editor', 'staff', 'order_manager', 'product_manager']);
+        return in_array($this->role, ['super_admin', 'admin', 'child_admin', 'blogger', 'content_writer', 'blog_manager', 'blog_editor', 'staff', 'order_manager', 'product_manager', 'custom']) || (bool)$this->is_staff;
     }
 
     /**
@@ -124,13 +124,25 @@ class User extends Authenticatable
         if ($this->role === 'order_manager' && in_array($permission, ['orders', 'reports'])) {
             return true;
         }
-        if ($this->role === 'product_manager' && in_array($permission, ['products', 'categories', 'brands', 'banners'])) {
+        if ($this->role === 'product_manager' && in_array($permission, ['products', 'categories', 'brands', 'banners', 'feeds', 'feed_generator'])) {
             return true;
         }
 
         // Check explicit permissions JSON array
         $perms = is_array($this->permissions) ? $this->permissions : [];
-        return in_array('*', $perms) || in_array($permission, $perms);
+        if (in_array('*', $perms) || in_array($permission, $perms)) {
+            return true;
+        }
+
+        // Support alias between 'feeds' and 'feed_generator'
+        if ($permission === 'feeds' && in_array('feed_generator', $perms)) {
+            return true;
+        }
+        if ($permission === 'feed_generator' && in_array('feeds', $perms)) {
+            return true;
+        }
+
+        return false;
     }
 
     public function isCustomer(): bool

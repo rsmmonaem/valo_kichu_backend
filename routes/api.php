@@ -283,6 +283,11 @@ Route::prefix('v2')->group(function () {
     Route::get('/store/{refer_code}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getPublicStore']);
 });
 
+// Public Product Feed endpoint for Meta / Facebook Catalog and Google Shopping automated synchronization
+Route::get('/public-feeds/{name}', [\App\Http\Controllers\Admin\FeedController::class, 'publicFeed'])->where('name', '.*');
+Route::get('/storage/feeds/{name}', [\App\Http\Controllers\Admin\FeedController::class, 'publicFeed'])->where('name', '.*');
+Route::get('/feeds/{name}', [\App\Http\Controllers\Admin\FeedController::class, 'publicFeed'])->where('name', '.*');
+
 // Direct Admin Blog & Staff routes for guaranteed resolution
 Route::group(['prefix' => 'admin/v1', 'middleware' => ['auth:sanctum', 'admin.access']], function () {
     Route::get('/blogs', [\App\Http\Controllers\BlogController::class, 'adminIndex']);

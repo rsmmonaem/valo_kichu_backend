@@ -95,7 +95,7 @@ class StaffController extends Controller
             } elseif ($request->role === 'order_manager') {
                 $permissions = ['orders', 'reports'];
             } elseif ($request->role === 'product_manager') {
-                $permissions = ['products', 'categories', 'brands', 'banners'];
+                $permissions = ['products', 'categories', 'brands', 'banners', 'feeds'];
             } elseif ($request->role === 'super_admin' || $request->role === 'admin') {
                 $permissions = ['*'];
             }

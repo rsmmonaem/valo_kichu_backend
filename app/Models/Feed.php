@@ -12,14 +12,16 @@ class Feed extends Model
             \App\Jobs\GenerateFeedJob::dispatch($feed);
         });
         static::updated(function (self $feed) {
-            if ($feed->isDirty(['field_mapping', 'schedule_cron', 'is_active'])) {
+            if ($feed->isDirty(['filters', 'field_mapping', 'schedule_cron', 'is_active'])) {
                 \App\Jobs\GenerateFeedJob::dispatch($feed);
             }
         });
     }
+
     protected $fillable = [
         'name',
         'format',
+        'filters',
         'field_mapping',
         'schedule_cron',
         'is_active',
@@ -27,6 +29,7 @@ class Feed extends Model
     ];
 
     protected $casts = [
+        'filters' => 'array',
         'field_mapping' => 'array',
         'is_active' => 'boolean',
         'last_generated_at' => 'datetime',

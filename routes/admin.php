@@ -72,7 +72,10 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'admin.access'])->group(functio
     Route::apiResource('shipping-methods', ShippingMethodController::class);
     Route::post('/upload', [UploadController::class, 'upload']);
     Route::get('/settings', [SettingController::class, 'index']);
-    Route::post('/feeds/{id}/generate', [App\Http\Controllers\Admin\FeedController::class, 'generate'])->name('feeds.generate');
+    Route::get('/feeds/preview', [\App\Http\Controllers\Admin\FeedController::class, 'preview']);
+    Route::get('/feeds/export', [\App\Http\Controllers\Admin\FeedController::class, 'export']);
+    Route::apiResource('feeds', \App\Http\Controllers\Admin\FeedController::class);
+    Route::post('/feeds/{id}/generate', [\App\Http\Controllers\Admin\FeedController::class, 'generate'])->name('feeds.generate');
     Route::post('/settings', [SettingController::class, 'update']);
 
     // IP Logs
@@ -105,3 +108,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'admin.access'])->group(functio
         Route::get('/users/{id}/due-invoice', [DropshippingAdminController::class, 'generateDueInvoice']);
     });
 });
+
+// Direct Feed route aliases
+Route::get('/feeds/preview', [\App\Http\Controllers\Admin\FeedController::class, 'preview']);
+Route::get('/feeds/export', [\App\Http\Controllers\Admin\FeedController::class, 'export']);
+Route::apiResource('feeds', \App\Http\Controllers\Admin\FeedController::class);
+Route::post('/feeds/{id}/generate', [\App\Http\Controllers\Admin\FeedController::class, 'generate']);

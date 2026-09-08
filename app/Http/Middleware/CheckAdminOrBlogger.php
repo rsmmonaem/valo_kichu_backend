@@ -54,13 +54,17 @@ class CheckAdminOrBlogger
             return $next($request);
         }
 
+        if (str_contains($path, 'feeds') && ($user->hasPermission('feeds') || $user->hasPermission('feed_generator') || $user->hasPermission('products') || $user->hasPermission('settings'))) {
+            return $next($request);
+        }
+
         if ((str_contains($path, 'products') || str_contains($path, 'brands') || str_contains($path, 'banners')) && $user->hasPermission('products')) {
             return $next($request);
         }
 
-        // Categories: write requires 'products', read-only is allowed for blogs
+        // Categories: write requires 'products', read-only is allowed for blogs and feeds
         if (str_contains($path, 'categories') || str_contains($path, 'sub-categories') || str_contains($path, 'sub-sub-categories')) {
-            if ($user->hasPermission('products') || ($request->isMethod('GET') && $user->hasPermission('blogs'))) {
+            if ($user->hasPermission('products') || ($request->isMethod('GET') && ($user->hasPermission('blogs') || $user->hasPermission('feeds') || $user->hasPermission('feed_generator')))) {
                 return $next($request);
             }
         }

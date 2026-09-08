@@ -19,18 +19,12 @@ Route::get('/migrate', function () {
 });
 
 
-Route::fallback(function (\Illuminate\Http\Request $request) {
-    if ($request->is('api/*')) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Route not found.'
-        ], 404);
-    }
-    return view('welcome');
-});
+// Serve and dynamically generate product feeds for Facebook Catalog / Google Merchant sync
+Route::get('/storage/feeds/{filename}', [\App\Http\Controllers\Admin\FeedController::class, 'serveFeedFile'])->where('filename', '.*');
+Route::get('/feeds/{filename}', [\App\Http\Controllers\Admin\FeedController::class, 'serveFeedFile'])->where('filename', '.*');
+Route::get('/public-feeds/{filename}', [\App\Http\Controllers\Admin\FeedController::class, 'serveFeedFile'])->where('filename', '.*');
 
 Route::get('/fixall', function () {
-
     Artisan::call('optimize:clear');
     Artisan::call('queue:restart');
     Artisan::call('config:clear');
@@ -44,6 +38,7 @@ Route::get('/fixall', function () {
         'message' => 'All cleared successfully'
     ]);
 });
+
 Route::get('migrate-checkout-leads', function () {
     \Artisan::call('migrate', [
         '--path' => 'database/migrations/2026_08_03_122118_add_refunded_quantity_to_order_items_table.php',
@@ -61,4 +56,14 @@ Route::get('/reset-import', function () {
         'status' => 'success',
         'message' => 'All products and categories have been deleted. You can now start a fresh import.'
     ]);
+});
+
+Route::fallback(function (\Illuminate\Http\Request $request) {
+    if ($request->is('api/*')) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Route not found.'
+        ], 404);
+    }
+    return view('welcome');
 });
