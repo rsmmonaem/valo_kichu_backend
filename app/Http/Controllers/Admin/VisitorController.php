@@ -71,11 +71,15 @@ class VisitorController extends Controller
               ->orWhereDate('created_at', today())
               ->orWhereHas('pageViews', fn($pq) => $pq->whereDate('created_at', today()));
         })->count();
+        $todayPageViews = \App\Models\VisitorPageView::whereDate('created_at', today())->count();
+        $totalPageViews = \App\Models\VisitorPageView::count();
 
         $stats = [
-            'total_unique'   => $totalUnique,
-            'today_unique'   => $todayUnique,
-            'filtered_total' => $visitors->total(),
+            'total_unique'     => $totalUnique,
+            'today_unique'     => $todayUnique,
+            'today_page_views' => $todayPageViews,
+            'total_page_views' => $totalPageViews,
+            'filtered_total'   => $visitors->total(),
         ];
 
         return response()->json([
