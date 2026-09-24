@@ -30,17 +30,13 @@ class OptionalAuth
                     // Also set the current access token for the request
                     $request->setUserResolver(fn() => $user);
                 } else {
-                    return response()->json([
-                        'error' => 'Unauthenticated',
-                        'message' => 'Invalid token or user not found.'
-                    ], 401);
+                    $request->setUserResolver(fn() => null);
                 }
             } else {
-                return response()->json([
-                    'error' => 'Unauthenticated',
-                    'message' => 'Invalid or expired token.'
-                ], 401);
+                $request->setUserResolver(fn() => null);
             }
+        } else {
+            $request->setUserResolver(fn() => null);
         }
         
         return $next($request);

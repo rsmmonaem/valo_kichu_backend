@@ -22,6 +22,11 @@ class CheckoutLead extends Model
         'converted',
         'order_id',
         'cart_data',
+        'ip_address',
+        'fb_event_id',
+        'fbp',
+        'fbc',
+        'user_agent',
     ];
 
     protected $casts = [

@@ -8,7 +8,8 @@ class VisitorPageView extends Model
 {
     protected $fillable = [
         'visitor_id',
-        'url'
+        'url',
+        'fb_event_id',
     ];
 
     public function visitor()

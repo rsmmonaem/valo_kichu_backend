@@ -25,21 +25,29 @@ class CheckoutLeadAdminController extends Controller
             $query->where('converted', filter_var($request->converted, FILTER_VALIDATE_BOOLEAN));
         }
 
-        // Search by name, phone or email
+        // Search by name, phone, email, IP or FB Event ID
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('ip_address', 'like', "%{$search}%")
+                    ->orWhere('fb_event_id', 'like', "%{$search}%");
             });
         }
 
-        // Date filters
+        // Date filters (checks active date or creation date)
         if ($startDate = $request->input('start_date')) {
-            $query->whereDate('created_at', '>=', $startDate);
+            $query->where(function ($q) use ($startDate) {
+                $q->whereDate('updated_at', '>=', $startDate)
+                  ->orWhereDate('created_at', '>=', $startDate);
+            });
         }
         if ($endDate = $request->input('end_date')) {
-            $query->whereDate('created_at', '<=', $endDate);
+            $query->where(function ($q) use ($endDate) {
+                $q->whereDate('updated_at', '<=', $endDate)
+                  ->orWhereDate('created_at', '<=', $endDate);
+            });
         }
 
         $leads = $query->paginate($request->input('per_page', 20));
@@ -168,10 +176,13 @@ class CheckoutLeadAdminController extends Controller
     public function stats()
     {
         return response()->json([
-            'total' => CheckoutLead::count(),
+            'total'     => CheckoutLead::count(),
             'converted' => CheckoutLead::where('converted', true)->count(),
-            'pending' => CheckoutLead::where('converted', false)->count(),
-            'today' => CheckoutLead::whereDate('created_at', today())->count(),
+            'pending'   => CheckoutLead::where('converted', false)->count(),
+            'today'     => CheckoutLead::where(function ($q) {
+                $q->whereDate('created_at', today())
+                  ->orWhereDate('updated_at', today());
+            })->count(),
         ]);
     }
 

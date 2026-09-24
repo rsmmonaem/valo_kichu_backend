@@ -16,14 +16,31 @@ class CheckoutLeadController extends Controller
     {
         $user = $request->user(); // null for guests
 
+        // Client IP detection (with Cloudflare support)
+        $rawIp = $request->header('CF-Connecting-IP')
+            ?? ($request->header('X-Forwarded-For') ? explode(',', $request->header('X-Forwarded-For'))[0] : null)
+            ?? $request->ip();
+        $ip = $rawIp ? trim($rawIp) : null;
+
+        $fbEventId = $request->input('fb_event_id');
+        $fbp = $request->input('fbp');
+        $fbc = $request->input('fbc');
+        $userAgent = $request->input('user_agent') ?: $request->userAgent();
+
         $data = $request->only([
             'name', 'phone', 'email', 'address',
             'area', 'payment_method', 'notes',
             'cart_data',
         ]);
 
-        // Remove null-ish empty values so we don't overwrite already saved data
+        // Remove null-ish empty values so we don't overwrite already saved data with blanks
         $data = array_filter($data, fn($v) => $v !== null && $v !== '');
+
+        if ($ip) $data['ip_address'] = $ip;
+        if ($fbEventId) $data['fb_event_id'] = $fbEventId;
+        if ($fbp) $data['fbp'] = $fbp;
+        if ($fbc) $data['fbc'] = $fbc;
+        if ($userAgent) $data['user_agent'] = $userAgent;
 
         // Session token for guest tracking (sent from frontend, stored in localStorage)
         $sessionToken = $request->input('session_token');
@@ -47,10 +64,11 @@ class CheckoutLeadController extends Controller
 
         if ($lead) {
             $lead->update($data);
+            $lead->touch();
         } else {
             $lead = CheckoutLead::create(array_merge($data, [
                 'user_id'       => $user?->id,
-                'session_token' => $sessionToken ?? Str::uuid(),
+                'session_token' => $sessionToken ?? (string) Str::uuid(),
                 'converted'     => false,
             ]));
         }

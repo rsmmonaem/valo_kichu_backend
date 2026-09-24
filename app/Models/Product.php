@@ -127,7 +127,11 @@ class Product extends Model
             }
         }
 
-        return Storage::disk('public')->url('products/' . $imageName);
+        $url = Storage::disk('public')->url('products/' . $imageName);
+        if (str_contains($url, 'localhost') || str_contains($url, '127.0.0.1')) {
+            return asset('storage/products/' . $imageName);
+        }
+        return $url;
     }
 
     public function getGalleryImageUrlsAttribute()
@@ -151,7 +155,11 @@ class Product extends Model
                 }
             }
             
-            return Storage::disk('public')->url('products/' . $imageName);
+            $url = Storage::disk('public')->url('products/' . $imageName);
+            if (str_contains($url, 'localhost') || str_contains($url, '127.0.0.1')) {
+                return asset('storage/products/' . $imageName);
+            }
+            return $url;
         }, $gallery);
     }
 

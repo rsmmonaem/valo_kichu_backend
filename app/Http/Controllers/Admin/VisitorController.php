@@ -12,34 +12,76 @@ class VisitorController extends Controller
     {
         $query = Visitor::withCount('pageViews');
 
-        if ($request->has('filter')) {
+        // Search by IP, location, or FB tracking IDs
+        if ($search = $request->input('search')) {
+            $search = trim($search);
+            $query->where(function ($q) use ($search) {
+                $q->where('ip_address', 'like', "%{$search}%")
+                  ->orWhere('location', 'like', "%{$search}%")
+                  ->orWhere('city', 'like', "%{$search}%")
+                  ->orWhere('country', 'like', "%{$search}%")
+                  ->orWhere('fb_event_id', 'like', "%{$search}%")
+                  ->orWhere('fbc', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('filter')) {
             $filter = $request->filter;
             if ($filter === 'daily') {
-                $query->whereDate('created_at', today());
+                $query->where(function ($q) {
+                    $q->whereDate('last_visited_at', today())
+                      ->orWhereDate('created_at', today())
+                      ->orWhereHas('pageViews', function ($pq) {
+                          $pq->whereDate('created_at', today());
+                      });
+                });
             } elseif ($filter === 'monthly') {
-                $query->whereMonth('created_at', now()->month)
-                      ->whereYear('created_at', now()->year);
+                $query->where(function ($q) {
+                    $q->where(function ($sub) {
+                        $sub->whereMonth('last_visited_at', now()->month)
+                            ->whereYear('last_visited_at', now()->year);
+                    })->orWhere(function ($sub) {
+                        $sub->whereMonth('created_at', now()->month)
+                            ->whereYear('created_at', now()->year);
+                    })->orWhereHas('pageViews', function ($pq) {
+                        $pq->whereMonth('created_at', now()->month)
+                           ->whereYear('created_at', now()->year);
+                    });
+                });
             }
         }
 
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('created_at', [
-                $request->start_date . ' 00:00:00', 
-                $request->end_date . ' 23:59:59'
-            ]);
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $startDate = $request->start_date . ' 00:00:00';
+            $endDate = $request->end_date . ' 23:59:59';
+            $query->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('last_visited_at', [$startDate, $endDate])
+                  ->orWhereBetween('created_at', [$startDate, $endDate])
+                  ->orWhereHas('pageViews', function ($pq) use ($startDate, $endDate) {
+                      $pq->whereBetween('created_at', [$startDate, $endDate]);
+                  });
+            });
         }
 
-        $visitors = $query->orderBy('created_at', 'desc')->paginate(20);
+        $visitors = $query->orderByRaw('COALESCE(last_visited_at, updated_at, created_at) DESC')->paginate($request->input('per_page', 20));
 
-        // Also fetch total unique visitors for the given period
+        $totalUnique = Visitor::count();
+        $todayUnique = Visitor::where(function ($q) {
+            $q->whereDate('last_visited_at', today())
+              ->orWhereDate('created_at', today())
+              ->orWhereHas('pageViews', fn($pq) => $pq->whereDate('created_at', today()));
+        })->count();
+
         $stats = [
-            'total_unique' => $visitors->total(),
+            'total_unique'   => $totalUnique,
+            'today_unique'   => $todayUnique,
+            'filtered_total' => $visitors->total(),
         ];
 
         return response()->json([
             'status' => 'success',
-            'data' => $visitors,
-            'stats' => $stats
+            'data'   => $visitors,
+            'stats'  => $stats,
         ]);
     }
 
