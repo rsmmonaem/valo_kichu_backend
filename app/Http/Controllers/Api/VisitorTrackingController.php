@@ -93,16 +93,19 @@ class VisitorTrackingController extends Controller
             $visitor->touch();
         }
 
-        // Record page view
-        VisitorPageView::create([
-            'visitor_id'  => $visitor->id,
-            'url'         => $request->url,
-            'fb_event_id' => $fbEventId,
-        ]);
+        // Record page view (skip duplicating page views if it's just a background heartbeat ping)
+        if (!$request->boolean('is_heartbeat')) {
+            VisitorPageView::create([
+                'visitor_id'  => $visitor->id,
+                'url'         => $request->url,
+                'fb_event_id' => $fbEventId,
+            ]);
+        }
 
         return response()->json([
             'status'     => 'success',
             'visitor_id' => $visitor->id,
+            'is_online'  => true,
         ]);
     }
 }

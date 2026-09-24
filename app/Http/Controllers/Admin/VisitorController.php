@@ -27,7 +27,15 @@ class VisitorController extends Controller
 
         if ($request->filled('filter')) {
             $filter = $request->filter;
-            if ($filter === 'daily') {
+            if ($filter === 'online') {
+                $onlineThreshold = now()->subMinutes(3);
+                $query->where(function ($q) use ($onlineThreshold) {
+                    $q->where('last_visited_at', '>=', $onlineThreshold)
+                      ->orWhereHas('pageViews', function ($pq) use ($onlineThreshold) {
+                          $pq->where('created_at', '>=', $onlineThreshold);
+                      });
+                });
+            } elseif ($filter === 'daily') {
                 $query->where(function ($q) {
                     $q->whereDate('last_visited_at', today())
                       ->orWhereDate('created_at', today())
@@ -65,6 +73,15 @@ class VisitorController extends Controller
 
         $visitors = $query->orderByRaw('COALESCE(last_visited_at, updated_at, created_at) DESC')->paginate($request->input('per_page', 20));
 
+        $onlineThreshold = now()->subMinutes(3);
+
+        // Attach is_online flag to each visitor
+        $visitors->getCollection()->transform(function ($v) use ($onlineThreshold) {
+            $lastTime = $v->last_visited_at ?? $v->updated_at ?? $v->created_at;
+            $v->is_online = $lastTime && $lastTime >= $onlineThreshold;
+            return $v;
+        });
+
         $totalUnique = Visitor::count();
         $todayUnique = Visitor::where(function ($q) {
             $q->whereDate('last_visited_at', today())
@@ -74,9 +91,15 @@ class VisitorController extends Controller
         $todayPageViews = \App\Models\VisitorPageView::whereDate('created_at', today())->count();
         $totalPageViews = \App\Models\VisitorPageView::count();
 
+        $onlineNow = Visitor::where(function ($q) use ($onlineThreshold) {
+            $q->where('last_visited_at', '>=', $onlineThreshold)
+              ->orWhereHas('pageViews', fn($pq) => $pq->where('created_at', '>=', $onlineThreshold));
+        })->count();
+
         $stats = [
             'total_unique'     => $totalUnique,
             'today_unique'     => $todayUnique,
+            'online_now'       => $onlineNow,
             'today_page_views' => $todayPageViews,
             'total_page_views' => $totalPageViews,
             'filtered_total'   => $visitors->total(),
