@@ -25,7 +25,21 @@ class VisitorController extends Controller
             });
         }
 
-        if ($request->filled('filter')) {
+        $startDate = null;
+        $endDate = null;
+
+        // Date range filter takes priority over preset filter
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $startDate = $request->start_date . ' 00:00:00';
+            $endDate = $request->end_date . ' 23:59:59';
+            $query->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('last_visited_at', [$startDate, $endDate])
+                  ->orWhereBetween('created_at', [$startDate, $endDate])
+                  ->orWhereHas('pageViews', function ($pq) use ($startDate, $endDate) {
+                      $pq->whereBetween('created_at', [$startDate, $endDate]);
+                  });
+            });
+        } elseif ($request->filled('filter')) {
             $filter = $request->filter;
             if ($filter === 'online') {
                 $onlineThreshold = now()->subMinutes(3);
@@ -59,18 +73,6 @@ class VisitorController extends Controller
             }
         }
 
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $startDate = $request->start_date . ' 00:00:00';
-            $endDate = $request->end_date . ' 23:59:59';
-            $query->where(function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('last_visited_at', [$startDate, $endDate])
-                  ->orWhereBetween('created_at', [$startDate, $endDate])
-                  ->orWhereHas('pageViews', function ($pq) use ($startDate, $endDate) {
-                      $pq->whereBetween('created_at', [$startDate, $endDate]);
-                  });
-            });
-        }
-
         $visitors = $query->orderByRaw('COALESCE(last_visited_at, updated_at, created_at) DESC')->paginate($request->input('per_page', 20));
 
         $onlineThreshold = now()->subMinutes(3);
@@ -96,13 +98,27 @@ class VisitorController extends Controller
               ->orWhereHas('pageViews', fn($pq) => $pq->where('created_at', '>=', $onlineThreshold));
         })->count();
 
+        $filteredPageViews = null;
+        if ($startDate && $endDate) {
+            $filteredPageViews = \App\Models\VisitorPageView::whereBetween('created_at', [$startDate, $endDate])->count();
+        } elseif ($request->filled('filter')) {
+            if ($request->filter === 'daily') {
+                $filteredPageViews = $todayPageViews;
+            } elseif ($request->filter === 'monthly') {
+                $filteredPageViews = \App\Models\VisitorPageView::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
+            } elseif ($request->filter === 'online') {
+                $filteredPageViews = \App\Models\VisitorPageView::where('created_at', '>=', $onlineThreshold)->count();
+            }
+        }
+
         $stats = [
-            'total_unique'     => $totalUnique,
-            'today_unique'     => $todayUnique,
-            'online_now'       => $onlineNow,
-            'today_page_views' => $todayPageViews,
-            'total_page_views' => $totalPageViews,
-            'filtered_total'   => $visitors->total(),
+            'total_unique'        => $totalUnique,
+            'today_unique'        => $todayUnique,
+            'online_now'          => $onlineNow,
+            'today_page_views'    => $todayPageViews,
+            'total_page_views'    => $totalPageViews,
+            'filtered_total'      => $visitors->total(),
+            'filtered_page_views' => $filteredPageViews,
         ];
 
         return response()->json([
