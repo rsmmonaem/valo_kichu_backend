@@ -235,7 +235,9 @@ class OrderController extends Controller
             'items.*.variation_snapshot' => 'nullable|string',
         ]);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $validated) {
+        $previousStatus = $order->status;
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $validated, $previousStatus) {
             $items = $validated['items'] ?? null;
             unset($validated['items']);
 
@@ -283,8 +285,15 @@ class OrderController extends Controller
             $order->total_price = max(0, $order->subtotal - $order->discount + $order->shipping_cost);
             $order->save();
 
-            if (isset($validated['status']) && $validated['status'] === 'delivered') {
-                \App\Services\WalletService::distributeCommissions($order);
+            if (isset($validated['status'])) {
+                if ($validated['status'] === 'delivered' && $previousStatus !== 'delivered') {
+                    \App\Services\WalletService::distributeCommissions($order);
+                    // COD Order Protection: Send verified Purchase conversion to Meta CAPI
+                    \App\Services\MetaCapiService::sendDeliveredPurchase($order);
+                } elseif (in_array($validated['status'], ['cancelled', 'returned']) && !in_array($previousStatus, ['cancelled', 'returned'])) {
+                    // Send Refund event to Meta CAPI when order is cancelled or returned
+                    \App\Services\MetaCapiService::sendRefund($order);
+                }
             }
         });
 
@@ -499,6 +508,9 @@ class OrderController extends Controller
 
             $order->status = 'refunded';
             $order->save();
+
+            // Send Refund event to Meta CAPI
+            \App\Services\MetaCapiService::sendRefund($order);
         });
 
         return response()->json([

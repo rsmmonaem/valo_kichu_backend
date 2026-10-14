@@ -30,6 +30,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'admin.access'])->group(functio
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('/reports/courier', [ReportController::class, 'courierReport']);
     Route::get('/customers', [CustomerController::class, 'index']);
+    Route::get('/customers/{id}', [CustomerController::class, 'show']);
+    Route::put('/customers/{id}', [CustomerController::class, 'update']);
+    Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
     Route::put('/customers/{id}/status', [CustomerController::class, 'toggleStatus']);
 
     // Page Settings

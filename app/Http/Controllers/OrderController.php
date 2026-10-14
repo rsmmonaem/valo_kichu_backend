@@ -690,18 +690,30 @@ class OrderController extends Controller
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
 
-        if ($order->status === 'Cancelled') {
-            return response()->json(['detail' => 'Order is already cancelled.'], 400);
+        $currentStatus = strtolower($order->status ?? '');
+
+        if ($currentStatus === 'cancelled') {
+            return response()->json([
+                'message' => 'Order is already cancelled.',
+                'detail' => 'Order is already cancelled.'
+            ], 400);
         }
 
-        if (in_array($order->status, ['Delivered', 'Complete'])) {
-            return response()->json(['detail' => 'Cannot cancel an order that is delivered or complete.'], 400);
+        if (in_array($currentStatus, ['delivered', 'complete'])) {
+            return response()->json([
+                'message' => 'Cannot cancel an order that is delivered or complete.',
+                'detail' => 'Cannot cancel an order that is delivered or complete.'
+            ], 400);
         }
 
-        $order->status = 'Cancelled';
+        $order->status = 'cancelled';
         $order->save();
 
-        return response()->json(['detail' => 'Order has been cancelled.'], 200);
+        return response()->json([
+            'message' => 'Order has been cancelled successfully.',
+            'detail' => 'Order has been cancelled.',
+            'status' => 'cancelled'
+        ], 200);
     }
 
     public function orderInfoDetail($order_id, Request $request)

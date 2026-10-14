@@ -237,6 +237,10 @@ Route::group(['prefix' => 'v1'], function () {
         // EPS Payment routes (authenticated, with deduplication)
         Route::post('/payment/init-eps', [PaymentController::class, 'initEpsPayment']);
     });
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/dropshipper/apply', [AuthController::class, 'applyAsDropshipper']);
+    });
 });
 
 // Dropshipping Secure API (External)

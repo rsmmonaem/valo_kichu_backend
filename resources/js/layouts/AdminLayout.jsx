@@ -77,7 +77,7 @@ const AdminLayout = () => {
             ],
         },
         { name: "Banners", path: "/admin/banners", icon: Image },
-        { name: "Appearance", path: "/admin/appearance", icon: Settings },
+        { name: "Settings", path: "/admin/settings", icon: Settings },
     ];
 
     return (
@@ -114,6 +114,10 @@ const AdminLayout = () => {
 
                         const isActive =
                             location.pathname.startsWith(item.path) ||
+                            (item.path === "/admin/settings" &&
+                                location.pathname.startsWith(
+                                    "/admin/appearance"
+                                )) ||
                             activeMenu === item.name;
 
                         return (

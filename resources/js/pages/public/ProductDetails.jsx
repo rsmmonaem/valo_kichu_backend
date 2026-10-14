@@ -21,6 +21,7 @@ const ProductDetails = () => {
     const [selectedColor, setSelectedColor] = useState(null);
     const [selectedSize, setSelectedSize] = useState(null);
     const [selectedWeight, setSelectedWeight] = useState(null);
+    const [selectedCustomAttrs, setSelectedCustomAttrs] = useState({});
 
     // Derived Data
     const colorData = attributes.find(a => a.name.toLowerCase() === 'color')?.values.map((c, i) => ({
@@ -31,6 +32,7 @@ const ProductDetails = () => {
 
     const sizeData = attributes.find(a => a.name.toLowerCase() === 'size')?.values || [];
     const weightData = attributes.find(a => a.name.toLowerCase() === 'weight')?.values || [];
+    const dynamicAttributes = attributes.filter(a => !['color', 'size', 'weight'].includes(a.name?.toLowerCase()));
 
     useEffect(() => {
         fetchProduct();
@@ -67,6 +69,16 @@ const ProductDetails = () => {
             const weights = parsedAttrs.find(a => a.name.toLowerCase() === 'weight')?.values || [];
             if (weights.length > 0) setSelectedWeight(weights[0]);
 
+            // Initialize custom dynamic attributes
+            const initialCustom = {};
+            parsedAttrs.forEach(a => {
+                const name = a.name?.toLowerCase();
+                if (!['color', 'size', 'weight'].includes(name) && Array.isArray(a.values) && a.values.length > 0) {
+                    initialCustom[a.name] = a.values[0];
+                }
+            });
+            setSelectedCustomAttrs(initialCustom);
+
         } catch (error) {
             console.error("Failed to fetch product", error);
             toast.error("Failed to load product");
@@ -80,7 +92,8 @@ const ProductDetails = () => {
             ...product,
             selectedColor,
             selectedSize,
-            selectedWeight
+            selectedWeight,
+            selectedCustomAttrs,
         };
         addToCart(itemToAdd, quantity);
     };
@@ -215,6 +228,40 @@ const ProductDetails = () => {
                                         </div>
                                     )}
 
+                                    {/* Dynamic Attributes Selector (e.g. Month, Ram size, Storage, etc.) */}
+                                    {dynamicAttributes.map((attr, idx) => {
+                                        const values = Array.isArray(attr.values) ? attr.values : [];
+                                        if (values.length === 0) return null;
+                                        const selectedVal = selectedCustomAttrs[attr.name] || values[0];
+                                        return (
+                                            <div key={idx} className="mb-4">
+                                                <span className="font-bold text-gray-800 text-sm block mb-2">
+                                                    {attr.name}: {selectedVal}
+                                                </span>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {values.map((v, vIdx) => (
+                                                        <button
+                                                            key={vIdx}
+                                                            onClick={() =>
+                                                                setSelectedCustomAttrs((prev) => ({
+                                                                    ...prev,
+                                                                    [attr.name]: v,
+                                                                }))
+                                                            }
+                                                            className={`px-4 py-2 text-sm font-medium rounded-lg border transition ${
+                                                                selectedVal === v
+                                                                    ? "bg-primary text-white border-primary"
+                                                                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                                                            }`}
+                                                        >
+                                                            {v}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
                                     <span className="font-bold text-gray-800 text-sm">Quantity:</span>
                                     <div className="flex items-center border border-gray-300 rounded-lg w-fit bg-white">
                                         <button
@@ -247,7 +294,8 @@ const ProductDetails = () => {
                                             ...product,
                                             selectedColor,
                                             selectedSize,
-                                            selectedWeight
+                                            selectedWeight,
+                                            selectedCustomAttrs,
                                         };
                                         addToCart(itemToAdd, quantity);
                                         navigate('/checkout');

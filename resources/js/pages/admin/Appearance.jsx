@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Plus, Trash2, Save, Image as ImageIcon, Settings } from 'lucide-react';
+import { Plus, Trash2, Save, Image as ImageIcon, Settings, Tags } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Appearance = () => {
@@ -12,7 +12,8 @@ const Appearance = () => {
         primary_color: '#2563eb',
         secondary_color: '#1e293b',
         shipping_charge_inside_dhaka: '',
-        shipping_charge_outside_dhaka: ''
+        shipping_charge_outside_dhaka: '',
+        product_attributes: 'Weight, Size, Ram size, Pic',
     });
     const [banners, setBanners] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -234,31 +235,68 @@ const Appearance = () => {
                                     <p className="text-[10px] text-gray-500 mt-1">Recommended size: 32x32px</p>
                                 </div>
                             </div>
-
-                            {/* Shipping Charges */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Charge (Inside Dhaka)</label>
-                                    <input
-                                        type="number"
-                                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="60"
-                                        value={settings.shipping_charge_inside_dhaka || ''}
-                                        onChange={e => setSettings({ ...settings, shipping_charge_inside_dhaka: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Charge (Outside Dhaka)</label>
-                                    <input
-                                        type="number"
-                                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="120"
-                                        value={settings.shipping_charge_outside_dhaka || ''}
-                                        onChange={e => setSettings({ ...settings, shipping_charge_outside_dhaka: e.target.value })}
-                                    />
-                                </div>
-                            </div>
                         </div>
+                    </div>
+
+                    {/* Shipping Charges */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Charge (Inside Dhaka)</label>
+                            <input
+                                type="number"
+                                className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="60"
+                                value={settings.shipping_charge_inside_dhaka || ''}
+                                onChange={e => setSettings({ ...settings, shipping_charge_inside_dhaka: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Charge (Outside Dhaka)</label>
+                            <input
+                                type="number"
+                                className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="120"
+                                value={settings.shipping_charge_outside_dhaka || ''}
+                                onChange={e => setSettings({ ...settings, shipping_charge_outside_dhaka: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Product Attributes Setting */}
+                    <div className="border-t border-gray-100 pt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                            <Tags size={16} className="text-blue-600" />
+                            Product Attributes (Comma Separated)
+                        </label>
+                        <input
+                            type="text"
+                            className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                            placeholder="Weight, Size, Month, Ram size, Pic"
+                            value={settings.product_attributes || ''}
+                            onChange={e => setSettings({ ...settings, product_attributes: e.target.value })}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            কমা (,) দিয়ে Product Attributes গুলোর নাম লিখুন (যেমন: <b>Weight, Size, Month</b>)। এই নামগুলো Product Add এবং Edit করার সময় Attribute dropdown-এ শো করবে।
+                        </p>
+
+                        {/* Real-time Attribute Preview Chips */}
+                        {settings.product_attributes && (
+                            <div className="mt-2.5 flex flex-wrap gap-2 items-center">
+                                <span className="text-xs font-semibold text-gray-500">Preview:</span>
+                                {settings.product_attributes
+                                    .split(',')
+                                    .map(s => s.trim())
+                                    .filter(Boolean)
+                                    .map((attrName, idx) => (
+                                        <span
+                                            key={idx}
+                                            className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full border border-blue-200 shadow-sm"
+                                        >
+                                            {attrName}
+                                        </span>
+                                    ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Colors */}

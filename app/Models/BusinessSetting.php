@@ -59,7 +59,7 @@ class BusinessSetting extends Model
     /**
      * Set a setting value by key
      */
-    public static function setValue(string $key, $value, string $type = null): void
+    public static function setValue(string $key, $value, ?string $type = null): void
     {
         if ($type === null) {
             $type = self::detectType($value);

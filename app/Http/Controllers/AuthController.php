@@ -32,25 +32,55 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        // Normalize phone number to standard 11 digits: 01XXXXXXXXX
+        if ($request->filled('phone_number')) {
+            $phone = preg_replace('/[\s-]/', '', $request->phone_number);
+            if (str_starts_with($phone, '+880')) {
+                $phone = '0' . substr($phone, 4);
+            } elseif (str_starts_with($phone, '880')) {
+                $phone = '0' . substr($phone, 3);
+            }
+            $request->merge(['phone_number' => $phone]);
+        }
+
+        if ($request->filled('email')) {
+            $request->merge(['email' => strtolower(trim($request->email))]);
+        }
+
         $validator = Validator::make($request->all(), [
-            'email' => 'nullable|email|unique:users,email',
-            'phone_number' => 'required|string|max:15|unique:users,phone_number',
+            'email' => 'required|email:rfc,filter|max:255|unique:users,email',
+            'phone_number' => ['required', 'string', 'regex:/^01[3-9]\d{8}$/', 'unique:users,phone_number'],
             'password' => 'required|string|min:6',
             'first_name' => 'nullable|string|max:255',
             'last_name' => 'nullable|string|max:255',
             'gender' => 'nullable|in:Male,Female,Other',
             'date_of_birth' => 'nullable|date',
+        ], [
+            'email.required' => 'Please enter a valid email address.',
+            'email.email' => 'Please enter a valid email address (e.g. name@gmail.com).',
+            'email.unique' => 'The email has already been taken.',
+            'phone_number.required' => 'Please enter your Bangladeshi mobile number.',
+            'phone_number.regex' => 'Please enter a valid 11-digit Bangladeshi mobile number starting with 013-019 (e.g. 017XXXXXXXX).',
+            'phone_number.unique' => 'The phone number has already been taken.',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 400);
         }
 
+        $firstName = $request->first_name;
+        $lastName = $request->last_name;
+        if (!$firstName && $request->filled('name')) {
+            $parts = explode(' ', trim($request->name), 2);
+            $firstName = $parts[0];
+            $lastName = $parts[1] ?? '';
+        }
+
         $userData = [
             'phone_number' => $request->phone_number,
             'password' => Hash::make($request->password),
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
             'gender' => $request->gender,
             'date_of_birth' => $request->date_of_birth,
             'role' => $request->role ?? 'customer',
@@ -144,7 +174,8 @@ class AuthController extends Controller
 
         if ($user->isAnyDropshipper() && ! $user->is_approved) {
             return response()->json([
-                'error' => 'Your dropshipper account is pending admin approval.',
+                'error' => 'Your dropshipper account is pending admin approval. Please contact with admin for approval.',
+                'message' => 'Your dropshipper account is pending admin approval. Please contact with admin for approval.',
                 'is_approved' => false
             ], 403);
         }
@@ -331,6 +362,43 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return $this->userInfo($request);
+    }
+
+    public function applyAsDropshipper(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated.'], 401);
+        }
+
+        if ($request->filled('referral_code') && !$user->refer_by) {
+            $parent = User::where('refer_code', $request->referral_code)->first();
+            if ($parent) {
+                $user->refer_by = $parent->id;
+                if ($parent->role === 'dropshipper') {
+                    $user->role = 'sub_dropshipper';
+                } elseif ($parent->role === 'sub_dropshipper') {
+                    $user->role = 'sub_sub_dropshipper';
+                } else {
+                    $user->role = 'dropshipper';
+                }
+            } else {
+                $user->role = 'dropshipper';
+            }
+        } else {
+            if (!in_array($user->role, ['dropshipper', 'sub_dropshipper', 'sub_sub_dropshipper'])) {
+                $user->role = 'dropshipper';
+            }
+        }
+
+        $user->is_approved = false;
+        $user->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Your dropshipper application has been submitted and is pending admin approval.',
+            'user' => new UserResource($user)
+        ], 200);
     }
 
     public function updateProfile(Request $request)

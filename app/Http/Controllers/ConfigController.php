@@ -203,6 +203,7 @@ class ConfigController extends Controller
             'isLtr' => $isLtr,
             'shipping_charge_inside_dhaka' => (float) BusinessSetting::getValue('shipping_charge_inside_dhaka', 60),
             'shipping_charge_outside_dhaka' => (float) BusinessSetting::getValue('shipping_charge_outside_dhaka', 120),
+            'product_attributes' => BusinessSetting::getValue('product_attributes', 'Weight, Size, Ram size, Pic'),
         ]);
     }
 

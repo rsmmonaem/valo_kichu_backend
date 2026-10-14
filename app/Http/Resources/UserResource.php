@@ -23,6 +23,7 @@ class UserResource extends JsonResource
             'fcm_token' => $this->fcm_token,
             'role' => $this->role,
             'is_active' => $this->is_active,
+            'is_approved' => (bool) $this->is_approved,
             'is_staff' => $this->is_staff,
             'permissions' => $this->permissions ?? [],
             'is_verified' => $this->is_verified ?? false,

@@ -33,12 +33,13 @@ const EditProduct = () => {
     
     const [variations, setVariations] = useState([]);
     
-    const availAttributes = [
+    const defaultAttributes = [
         { id: 1, name: "Weight", value: [] },
         { id: 2, name: "Size", value: [] },
         { id: 3, name: "Ram size", value: [] },
         { id: 4, name: "Pic", value: [] },
     ];
+    const [availAttributes, setAvailAttributes] = useState(defaultAttributes);
     
     const [selectedAttributes, setSelectedAttributes] = useState([]);
     const [shippingMultiply, setShippingMultiply] = useState(true);
@@ -74,7 +75,33 @@ const EditProduct = () => {
         fetchProductData();
         fetchCategories();
         fetchBrands();
+        fetchAttributes();
     }, [id]);
+
+    const fetchAttributes = async () => {
+        try {
+            const { data } = await api.get("/admin/v1/settings");
+            if (Array.isArray(data)) {
+                const attrSetting = data.find((s) => s.key === "product_attributes");
+                if (attrSetting && attrSetting.value) {
+                    const parsed = attrSetting.value
+                        .split(",")
+                        .map((item) => item.trim())
+                        .filter((item) => item.length > 0)
+                        .map((name, index) => ({
+                            id: index + 1,
+                            name: name,
+                            value: [],
+                        }));
+                    if (parsed.length > 0) {
+                        setAvailAttributes(parsed);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Failed to load product attributes setting", err);
+        }
+    };
 
     const fetchProductData = async () => {
         try {
@@ -414,7 +441,13 @@ const EditProduct = () => {
         if (!attribute) return;
 
         // Prevent duplicate attribute
-        if (selectedAttributes.some((sa) => sa.id === attributeId)) {
+        if (
+            selectedAttributes.some(
+                (sa) =>
+                    sa.id === attributeId ||
+                    sa.name?.toLowerCase() === attribute.name?.toLowerCase()
+            )
+        ) {
             return;
         }
 

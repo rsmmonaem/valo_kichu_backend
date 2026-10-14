@@ -162,6 +162,10 @@ const AppRouter = () => {
                                     element={<Appearance />}
                                 />
                                 <Route
+                                    path="settings"
+                                    element={<Appearance />}
+                                />
+                                <Route
                                     path="fetchdata"
                                     element={<FetchData />}
                                 />

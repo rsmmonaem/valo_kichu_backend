@@ -23,13 +23,13 @@ export default function ProductModal({ product, onClose }) {
 
   // Extract size and color from attributes
   const sizeData =
-    productAttributes.find((a) => a.name.toLowerCase() === "size")?.values ||
+    productAttributes.find((a) => a?.name?.toLowerCase() === "size")?.values ||
     [];
 
   const colorData =
     productAttributes
-      .find((a) => a.name.toLowerCase() === "color")
-      ?.values.map((c, idx) => ({
+      .find((a) => a?.name?.toLowerCase() === "color")
+      ?.values?.map((c, idx) => ({
         id: idx + 1,
         name: typeof c === "string" ? c : c.name,
         img: c?.image || "",
@@ -46,8 +46,8 @@ export default function ProductModal({ product, onClose }) {
 
   const weightData =
     productAttributes
-      .find((a) => a.name.toLowerCase() === "weight")
-      ?.values.map((c, idx) => ({
+      .find((a) => a?.name?.toLowerCase() === "weight")
+      ?.values?.map((c, idx) => ({
         id: idx + 1,
         name: typeof c === "string" ? c : c.name,
         img: c?.image || "",
