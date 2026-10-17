@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Services\SearchService;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -43,28 +44,9 @@ class ProductController extends Controller
             $query->whereRaw('(CASE WHEN sale_price IS NOT NULL AND sale_price > 0 THEN sale_price ELSE base_price END) <= ?', [$request->max_price]);
         }
 
-        // Search
-        if ($request->has('search') && !empty(trim($request->search))) {
-            $search = trim($request->search);
-            $cleanSearch = preg_replace('/[^a-zA-Z0-9 ]/', '', $search);
-            
-            if (!empty($cleanSearch)) {
-                $query->where(function ($q) use ($search, $cleanSearch) {
-                    $q->where('name', 'REGEXP', '(^|[^a-zA-Z0-9])' . $cleanSearch . '($|[^a-zA-Z0-9])')
-                      ->orWhere('product_code', 'like', "%{$search}%")
-                      ->orWhere('tags', 'like', "%{$search}%");
-                });
-            }
-
-            // Relevance ordering: exact name match first, then name contains search term, then others
-            $query->orderByRaw("
-                CASE 
-                    WHEN name LIKE ? THEN 1
-                    WHEN name LIKE ? THEN 2
-                    WHEN product_code LIKE ? THEN 3
-                    ELSE 4
-                END ASC
-            ", ["{$search}", "%{$search}%", "%{$search}%"]);
+        // Search (Intelligent Bilingual Bengali + English + Banglish)
+        if ($request->filled('search')) {
+            $query = SearchService::applySearch($query, (string) $request->search);
         }
 
         // Sorting
@@ -85,9 +67,12 @@ class ProductController extends Controller
                     $query->orderBy('created_at', 'asc');
                     break;
                 default:
-                    $query->orderBy('created_at', 'desc');
+                    // If searching and no specific sort provided, keep SearchService's relevance rank
+                    if (!$request->filled('search')) {
+                        $query->orderBy('created_at', 'desc');
+                    }
             }
-        } else {
+        } elseif (!$request->filled('search')) {
             $query->orderBy('created_at', 'desc');
         }
 
@@ -100,6 +85,20 @@ class ProductController extends Controller
     }
 
     /**
+     * Provide instant search suggestions for autocomplete dropdown (Daraz-style).
+     */
+    public function suggestions(Request $request)
+    {
+        $query = $request->input('q') ?? $request->input('query') ?? $request->input('search') ?? '';
+        $data = SearchService::getSuggestions((string) $query);
+
+        return response()->json([
+            'status' => true,
+            'data' => $data
+        ]);
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show($slug)
@@ -107,6 +106,12 @@ class ProductController extends Controller
         $product = Product::where('slug', $slug)
             ->with(['category', 'brand', 'images', 'reviews'])
             ->first();
+
+        if (!$product && is_numeric($slug)) {
+            $product = Product::where('id', $slug)
+                ->with(['category', 'brand', 'images', 'reviews'])
+                ->first();
+        }
 
         if (!$product) {
             return response()->json([

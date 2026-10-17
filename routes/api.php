@@ -283,6 +283,7 @@ Route::group(['prefix' => 'dropshipper', 'middleware' => ['auth:sanctum', 'drops
 // Public Store Routes (New API)
 Route::prefix('v2')->group(function () {
     Route::get('/products', [\App\Http\Controllers\Api\ProductController::class, 'index']);
+    Route::get('/products/search/suggestions', [\App\Http\Controllers\Api\ProductController::class, 'suggestions']);
     Route::get('/products/{slug}', [\App\Http\Controllers\Api\ProductController::class, 'show']);
     Route::get('/store/{refer_code}', [\App\Http\Controllers\Api\DropshipperApiController::class, 'getPublicStore']);
 });

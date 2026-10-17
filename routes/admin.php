@@ -52,6 +52,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'admin.access'])->group(functio
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('brands', BrandController::class);
     Route::apiResource('products', ProductController::class);
+    Route::apiResource('search-synonyms', \App\Http\Controllers\Admin\SearchSynonymController::class);
     Route::get('/orders/customer-history', [AdminOrderController::class, 'customerHistory']);
     Route::get('/orders/trashed', [AdminOrderController::class, 'trashed']);
     Route::post('/orders/bulk-delete', [AdminOrderController::class, 'bulkDelete']);

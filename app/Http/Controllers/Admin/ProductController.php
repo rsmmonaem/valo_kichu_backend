@@ -183,8 +183,20 @@ class ProductController extends Controller
             $data['base_price'] = $request->price;
         }
 
-        if ($request->has('name')) {
-            $data['slug'] = Str::slug($request->name) . '-' . Str::random(6);
+        // Only update slug if explicitly passed by admin, otherwise preserve the existing slug so ads, feeds, and SEO links never break
+        if ($request->filled('slug')) {
+            $customSlug = Str::slug($request->slug);
+            if ($customSlug !== $product->slug) {
+                $exists = Product::where('slug', $customSlug)->where('id', '!=', $product->id)->exists();
+                if ($exists) {
+                    $customSlug .= '-' . Str::random(4);
+                }
+                $data['slug'] = $customSlug;
+            }
+        } elseif (empty($product->slug)) {
+            // Generate a slug only if the product did not have one
+            $baseName = $request->name ?? $product->name ?? 'product';
+            $data['slug'] = Str::slug($baseName) . '-' . Str::random(6);
         }
 
         if (array_key_exists('current_stock', $data)) {
